@@ -11,8 +11,6 @@
 </head>
 <body>
   <div id="map"></div>
-
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
@@ -27,16 +25,12 @@
 
     async function loadHeatmap() {
       try {
-        const res = await fetch("http://localhost:3000/api/complaints"); // <-- correct backend URL
+        const res = await fetch("http://localhost:3000/api/complaints");
         const data = await res.json();
-
-        // Heatmap: [lat, lng, weight]
         const heatData = data.map(c => [c.lat, c.lng, 1]);
         if (heatLayer) map.removeLayer(heatLayer);
 
         heatLayer = L.heatLayer(heatData, { radius: 40, blur: 25 }).addTo(map);
-
-        // Markers for info
         data.forEach(c => {
           L.circleMarker([c.lat, c.lng], {
             radius: 8,
