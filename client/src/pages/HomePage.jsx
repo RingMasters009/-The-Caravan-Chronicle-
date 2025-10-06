@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 
 // It's best practice to move these styles to your index.css file,
@@ -6,10 +6,8 @@ import { Link } from "react-router-dom";
 const GlobalStyles = () => (
   <style>{`
     body {
-      /* Using Lato as the base font */
       font-family: 'Lato', sans-serif;
-      /* New, more atmospheric background image */
-      background-image: url('https://images.unsplash.com/photo-1533109721025-d1ae7de8c242?q=80&w=1974&auto=format&fit=crop');
+      background-image: url('https://images.unsplash.com/photo-1533109721025-d1ae7de8c242?q=80&w=1974&auto-format&fit=crop');
       background-size: cover;
       background-position: center;
       background-attachment: fixed;
@@ -19,57 +17,49 @@ const GlobalStyles = () => (
     
     body::before {
       content: '';
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(10, 20, 35, 0.75); /* A cooler, deeper overlay */
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10, 20, 35, 0.75);
       z-index: -1;
     }
 
-    /* Use Playfair Display for headers */
     h1, h2, h3 {
       font-family: 'Playfair Display', serif;
     }
 
-    /* Base glass card style */
     .glass-card {
-      background: rgba(15, 30, 45, 0.6); /* Slightly more opaque for clarity */
+      background: rgba(15, 30, 45, 0.6);
       backdrop-filter: blur(15px);
       -webkit-backdrop-filter: blur(15px);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      transition: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease;
     }
 
     .btn-primary-gradient {
-      background-image: linear-gradient(to right, #0891b2, #0d9488); /* Teal gradient */
+      background-image: linear-gradient(to right, #0891b2, #0d9488);
       color: white;
       transition: all 0.3s ease;
       box-shadow: 0 4px 15px 0 rgba(8, 145, 178, 0.3);
     }
     .btn-primary-gradient:hover {
-      transform: translateY(-3px);
+      transform: translateY(-2px);
       box-shadow: 0 6px 20px 0 rgba(8, 145, 178, 0.45);
     }
     
     .btn-secondary-outline {
-      color: #f59e0b; /* Rich Gold/Amber color */
+      color: #f59e0b;
       border: 2px solid #f59e0b;
       transition: all 0.3s ease;
     }
     .btn-secondary-outline:hover {
       background-color: rgba(245, 158, 11, 0.1);
-      transform: translateY(-3px);
+      transform: translateY(-2px);
     }
 
-    .text-gold {
-      color: #f59e0b;
-    }
+    .text-gold { color: #f59e0b; }
     
-    /* Subtle text shadow for main headings */
     .header-shadow {
       text-shadow: 0px 3px 15px rgba(0, 0, 0, 0.5);
     }
     
-    /* Animation for hero text */
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
@@ -78,13 +68,12 @@ const GlobalStyles = () => (
       animation: fadeInUp 1s ease-out forwards;
     }
     
-    /* New animation for the rotating Ferris wheel */
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
     .ferris-wheel-animation {
-      animation: spin 120s linear infinite; /* Slow, continuous rotation */
+      animation: spin 120s linear infinite;
     }
   `}</style>
 );
@@ -139,7 +128,7 @@ const HomePage = () => {
           </svg>
         </div>
 
-        {/* Header with a consistent glass background for clarity */}
+        {/* Improved Header */}
         <header className="w-full p-4 fixed top-0 z-50">
           <nav className="container mx-auto max-w-7xl glass-card rounded-2xl p-4 flex justify-between items-center">
             <Link
@@ -155,23 +144,30 @@ const HomePage = () => {
               >
                 Live Status
               </a>
-              <Link to="/report" className="hover:text-gold transition-colors">
-                Report Issue
-              </Link>
-              <Link to="/login" className="hover:text-gold transition-colors">
+              <a
+                href="#how-it-works"
+                className="hover:text-gold transition-colors"
+              >
+                How It Works
+              </a>
+            </div>
+            <div className="hidden md:flex items-center space-x-4">
+              <Link
+                to="/login"
+                className="hover:text-gold transition-colors font-semibold text-sm px-4 py-2"
+              >
                 Login
               </Link>
+              <Link
+                to="/register"
+                className="btn-primary-gradient font-semibold py-2 px-5 rounded-lg text-sm"
+              >
+                Register
+              </Link>
             </div>
-            <Link
-              to="/report"
-              className="hidden md:block btn-primary-gradient font-semibold py-2 px-5 rounded-lg text-sm"
-            >
-              Submit a Report
-            </Link>
           </nav>
         </header>
 
-        {/* Main content pushed down to avoid clashing with the fixed header */}
         <div className="w-full flex-grow flex flex-col justify-center pt-28">
           {/* Hero Section */}
           <main className="flex-grow flex items-center justify-center p-4">
@@ -207,6 +203,47 @@ const HomePage = () => {
             </div>
           </main>
 
+          {/* How It Works Section */}
+          <section id="how-it-works" className="w-full p-4 py-16">
+            <div className="container mx-auto max-w-6xl text-center">
+              <h2 className="text-4xl font-bold mb-12 header-shadow text-white">
+                A Simple Path to Resolution
+              </h2>
+              <div className="grid md:grid-cols-3 gap-8">
+                <div className="glass-card p-8 rounded-2xl">
+                  <div className="text-5xl mb-4">📍</div>
+                  <h3 className="text-2xl font-semibold mb-2">
+                    Pinpoint the Problem
+                  </h3>
+                  <p className="text-gray-300">
+                    Use our interactive map to drop a pin on the exact location
+                    of any issue.
+                  </p>
+                </div>
+                <div className="glass-card p-8 rounded-2xl">
+                  <div className="text-5xl mb-4">🎫</div>
+                  <h3 className="text-2xl font-semibold mb-2">
+                    Create a Chronicle
+                  </h3>
+                  <p className="text-gray-300">
+                    Submit a report with details and a photo to receive a unique
+                    tracking ticket.
+                  </p>
+                </div>
+                <div className="glass-card p-8 rounded-2xl">
+                  <div className="text-5xl mb-4">✨</div>
+                  <h3 className="text-2xl font-semibold mb-2">
+                    Witness the Magic
+                  </h3>
+                  <p className="text-gray-300">
+                    Receive real-time updates and a final notification when the
+                    issue is resolved.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Live Status Section */}
           <section id="live-status" className="w-full p-4 pb-16">
             <div className="container mx-auto max-w-7xl">
@@ -214,12 +251,8 @@ const HomePage = () => {
                 <h2 className="text-4xl font-bold text-white header-shadow">
                   Live City Status
                 </h2>
-                <p className="text-gray-400 mt-2">
-                  A real-time overview of reports from across the circus.
-                </p>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Map Column */}
                 <div className="lg:col-span-2">
                   <div className="glass-card rounded-2xl p-6 h-full">
                     <h3 className="text-2xl font-bold mb-4">Issue Heatmap</h3>
@@ -232,12 +265,10 @@ const HomePage = () => {
                     </div>
                   </div>
                 </div>
-                {/* Feed Column with improved UI */}
                 <div>
                   <div className="glass-card rounded-2xl p-6 h-full">
                     <h3 className="text-2xl font-bold mb-4">Live Feed</h3>
                     <div className="space-y-4">
-                      {/* Item 1 */}
                       <div className="flex items-center gap-4 border-b border-gray-700/50 pb-3">
                         <div className="w-3 h-3 rounded-full bg-orange-400 flex-shrink-0"></div>
                         <div>
@@ -245,11 +276,10 @@ const HomePage = () => {
                             Flickering Lights at Main Stage
                           </p>
                           <p className="text-xs text-gray-400">
-                            Status: In Progress - 2 hours ago
+                            Status: In Progress
                           </p>
                         </div>
                       </div>
-                      {/* Item 2 */}
                       <div className="flex items-center gap-4 border-b border-gray-700/50 pb-3">
                         <div className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></div>
                         <div>
@@ -257,11 +287,10 @@ const HomePage = () => {
                             Overflowing Bin near Midway
                           </p>
                           <p className="text-xs text-gray-400">
-                            Status: Overdue - 1 day ago
+                            Status: Overdue
                           </p>
                         </div>
                       </div>
-                      {/* Item 3 */}
                       <div className="flex items-center gap-4">
                         <div className="w-3 h-3 rounded-full bg-cyan-400 flex-shrink-0"></div>
                         <div>
@@ -269,7 +298,7 @@ const HomePage = () => {
                             Damaged Safety Rail
                           </p>
                           <p className="text-xs text-gray-400">
-                            Status: Resolved - 3 days ago
+                            Status: Resolved
                           </p>
                         </div>
                       </div>

@@ -40,6 +40,16 @@ export const apiService = {
     return handleResponse(response);
   },
 
+  register: async (fullName, email, password) => {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      // Assumes a POST /api/auth/register route
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, email, password }),
+    });
+    return handleResponse(response);
+  },
+
   // --- COMPLAINTS ---
   getComplaints: async () => {
     const response = await fetch(`${API_URL}/complaints`, {
