@@ -1,11 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import "./index.css";
-import "leaflet/dist/leaflet.css";
+import { BrowserRouter } from "react-router-dom";
+import { UserProvider } from "./context/UserContext.jsx";
+import App from "./App.jsx";
+import "./index.css"; // Your global stylesheet
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <UserProvider>
+        <App />
+      </UserProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );
