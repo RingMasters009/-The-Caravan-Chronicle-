@@ -8,11 +8,21 @@ const API_URL = "http://localhost:5000/api";
  * @returns {Promise<any>} - The parsed JSON data on success, or a rejected promise on failure.
  */
 const handleResponse = async (response) => {
-  const data = await response.json();
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      data = text;
+    }
+  }
+
   if (!response.ok) {
     // Extract error message from backend response, or use default status text
     const error = (data && data.message) || response.statusText;
-    return Promise.reject(error);
+    return Promise.reject(new Error(error));
   }
   return data;
 };
@@ -27,6 +37,18 @@ const getAuthHeaders = () => {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   };
+};
+
+const buildQueryString = (params = {}) => {
+  const cleaned = Object.entries(params).reduce((acc, [key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+
+  const qs = new URLSearchParams(cleaned).toString();
+  return qs ? `?${qs}` : "";
 };
 
 export const apiService = {
@@ -51,13 +73,6 @@ export const apiService = {
   },
 
   // --- COMPLAINTS ---
-  getComplaints: async () => {
-    const response = await fetch(`${API_URL}/complaints`, {
-      headers: getAuthHeaders(),
-    });
-    return handleResponse(response);
-  },
-
   createComplaint: async (complaintData) => {
     const response = await fetch(`${API_URL}/complaints`, {
       method: "POST",
@@ -67,11 +82,11 @@ export const apiService = {
     return handleResponse(response);
   },
 
-  updateComplaintStatus: async (id, status) => {
+  updateComplaintStatus: async (id, status, notes) => {
     const response = await fetch(`${API_URL}/complaints/${id}/status`, {
       method: "PATCH",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, notes }),
     });
     return handleResponse(response);
   },
@@ -97,6 +112,49 @@ export const apiService = {
     const response = await fetch(`${API_URL}/users/staff`, {
       headers: getAuthHeaders(),
     });
+    return handleResponse(response);
+  },
+
+  getComplaints: async (params = {}) => {
+    const query = buildQueryString(params);
+    const response = await fetch(`${API_URL}/complaints${query}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  getComplaintById: async (id) => {
+    const response = await fetch(`${API_URL}/complaints/${id}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  getComplaintStats: async (params = {}) => {
+    const query = buildQueryString(params);
+    const response = await fetch(`${API_URL}/complaints/stats${query}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  exportComplaintsCsv: async (params = {}) => {
+    const query = buildQueryString(params);
+    const response = await fetch(`${API_URL}/complaints/export/csv${query}`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to export CSV");
+    }
+
+    const blob = await response.blob();
+    return blob;
+  },
+
+  getPublicSummary: async () => {
+    const response = await fetch(`${API_URL}/complaints/public/summary`);
     return handleResponse(response);
   },
 };
