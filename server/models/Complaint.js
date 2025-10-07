@@ -117,7 +117,7 @@ const complaintSchema = new mongoose.Schema(
       submittedAt: Date,
     },
   },
-  {
+  {  
     timestamps: true,
   }
 );
