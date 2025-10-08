@@ -1,31 +1,37 @@
-// src/components/MapPicker.jsx
-import { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
-export default function MapPicker({ onSelect }) {
-  const mapRef = useRef(null);
-
+const MapPicker = ({ onSelect, userLocation }) => {
   useEffect(() => {
-    if (!mapRef.current) {
-      const script = document.createElement("script");
-      script.src = "https://api.geoapify.com/v1/maps?apiKey=YOUR_API_KEY";
-      script.async = true;
-      script.onload = () => {
-        const map = new window.Geoapify.Map({
-          container: "mappicker",
-          style: "https://maps.geoapify.com/v1/styles/positron/style.json",
-          center: [78.9629, 20.5937],
-          zoom: 5,
-        });
-        mapRef.current = map;
+    const map = L.map("map-picker").setView([20.5937, 78.9629], 5);
 
-        map.on("click", (e) => {
-          const { lat, lng } = e.lngLat;
-          onSelect({ lat, lng });
-        });
-      };
-      document.body.appendChild(script);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+
+    let marker = null;
+
+    map.on("click", function (e) {
+      const { lat, lng } = e.latlng;
+      if (marker) marker.remove();
+      marker = L.marker([lat, lng]).addTo(map);
+      onSelect({ lat, lng });
+    });
+
+    // 👇 if userLocation is passed (from "Use My Location")
+    if (userLocation) {
+      const { lat, lng } = userLocation;
+      map.setView([lat, lng], 15);
+      marker = L.marker([lat, lng]).addTo(map);
     }
-  }, [onSelect]);
 
-  return <div id="mappicker" style={{ width: "100%", height: 300, marginTop: 8 }} />;
-}
+    return () => {
+      map.remove();
+    };
+  }, [userLocation]);
+
+  return <div id="map-picker" style={{ height: "300px", width: "100%" }} />;
+};
+
+export default MapPicker;

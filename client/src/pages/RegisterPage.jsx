@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-// Note: You will need to add a `register` function to your apiService.js file for this to work.
-// import { apiService } from '../api/apiService.js';
+import { useUser } from "../context/UserContext";
 
 const GlobalStyles = () => (
   <style>{`
@@ -46,6 +45,7 @@ const RegisterPage = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { register } = useUser();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -61,17 +61,20 @@ const RegisterPage = () => {
     }
     setLoading(true);
     try {
-      // --- BACKEND INTEGRATION POINT ---
-      // const response = await apiService.register(formData.fullName, formData.email, formData.password);
-      // alert(response.message || 'Registration successful! Please log in.');
-
-      // Placeholder for demonstration:
-      alert(
-        "Registration functionality would be connected here. Redirecting to login."
+      const result = await register(
+        formData.fullName,
+        formData.email,
+        formData.password
       );
-      navigate("/login");
+
+      if (result.success) {
+        navigate("/");
+      } else {
+        setError(result.message || "Registration failed. Please try again.");
+      }
     } catch (err) {
-      setError(err.toString() || "Registration failed. Please try again.");
+      console.error(err);
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }

@@ -44,6 +44,23 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  // Function to handle user registration
+  const register = async (fullName, email, password) => {
+    try {
+      const data = await apiService.register(fullName, email, password);
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setUser(data.user);
+      return { success: true };
+    } catch (error) {
+      console.error("Registration failed:", error);
+      return {
+        success: false,
+        message: error.toString() || "Registration failed",
+      };
+    }
+  };
+
   // Function to handle user logout
   const logout = () => {
     // Clear session from storage and state
@@ -71,6 +88,7 @@ export const UserProvider = ({ children }) => {
     user,
     loading,
     login,
+    register,
     logout,
     isAuthenticated,
     isAuthorized,

@@ -1,35 +1,73 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useUser } from "./context/UserContext";
 
-// Import all your page components
 import HomePage from "./pages/HomePage";
 import ComplaintForm from "./pages/ComplaintForm";
-import MunicipalDashboard from "./pages/MunicipalDashboard";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import CitizenDashboard from "./pages/dashboard/CitizenDashboard";
+import StaffDashboard from "./pages/dashboard/StaffDashboard";
+import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import TransparencyPortal from "./pages/TransparencyPortal";
+import Layout from "./components/layout/Layout";
+
+const ProtectedRoute = ({ children, roles }) => {
+  const { user, loading } = useUser();
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
 
 function App() {
   return (
-    <div className="App">
-      {/* The Routes component defines all your app's pages */}
-      <Routes>
-        {/* Route for the homepage */}
-        <Route path="/" element={<HomePage />} />
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<HomePage />} />
+        <Route path="report" element={<ProtectedRoute roles={["User"]}><ComplaintForm /></ProtectedRoute>} />
+        <Route path="transparency" element={<TransparencyPortal />} />
 
-        {/* Route for the complaint submission form */}
-        <Route path="/report" element={<ComplaintForm />} />
+        <Route
+          path="dashboard/citizen"
+          element={
+            <ProtectedRoute roles={["User"]}>
+              <CitizenDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="dashboard/staff"
+          element={
+            <ProtectedRoute roles={["Staff", "Admin"]}>
+              <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="dashboard/admin"
+          element={
+            <ProtectedRoute roles={["Admin"]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
 
-        {/* Route for the municipal dashboard (protected route logic would be added here later) */}
-        <Route path="/dashboard" element={<MunicipalDashboard />} />
-
-        {/* --- ADD THESE ROUTES --- */}
-        {/* Route for the login page */}
-        <Route path="/login" element={<LoginPage />} />
-
-        {/* Route for the registration page */}
-        <Route path="/register" element={<RegisterPage />} />
-      </Routes>
-    </div>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 } 
 
