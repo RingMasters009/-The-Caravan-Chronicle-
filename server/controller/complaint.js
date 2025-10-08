@@ -10,7 +10,7 @@ const {
 const buildFilters = (user, query) => {
   const filters = {};
 
-  if (user.role === "User") {
+  if (user && user.role === "User") {
     filters.reporter = user._id;
   }
 
@@ -72,6 +72,7 @@ const ensureStaffAssignmentFilter = (filters, userId) => {
 
 exports.createComplaint = async (req, res) => {
   try {
+    console.log('Received complaint payload:', req.body);
     const {
       title,
       description,
@@ -153,6 +154,7 @@ exports.createComplaint = async (req, res) => {
       }
     }
 
+
     const complaint = await Complaint.create({
       title: normalizedTitle,
       description: normalizedDescription,
@@ -160,13 +162,19 @@ exports.createComplaint = async (req, res) => {
       priority,
       attachments,
       location: locationPayload,
-      reporter: req.user._id,
+      reporter: req.user ? req.user._id : undefined,
       slaHours,
     });
 
     res.status(201).json(complaint);
   } catch (error) {
     console.error("Create complaint error:", error);
+    if (error.errors) {
+      // Mongoose validation errors
+      Object.keys(error.errors).forEach((key) => {
+        console.error(`Validation error for ${key}:`, error.errors[key].message);
+      });
+    }
     res.status(500).json({ message: "Failed to create complaint", error: error.message });
   }
 };
@@ -417,8 +425,8 @@ exports.exportComplaintsCsv = async (req, res) => {
 
 exports.getHeatmapData = async (req, res) => {
   try {
-    const filters = buildFilters(req.user, req.query);
-    if (req.user.role === "Staff") {
+    const filters = buildFilters(req.user || {}, req.query);
+    if (req.user && req.user.role === "Staff") {
       ensureStaffAssignmentFilter(filters, req.user._id);
     }
 
@@ -431,24 +439,34 @@ exports.getHeatmapData = async (req, res) => {
       )
       .lean();
 
-    const data = complaints.map((complaint) => {
-      const [lng, lat] = complaint.location.coordinates.coordinates;
-      return {
-        id: complaint._id,
-        lat,
-        lng,
-        status: complaint.status,
-        priority: complaint.priority,
-        city: complaint.location?.city || null,
-        country: complaint.location?.country || null,
-        createdAt: complaint.createdAt,
-        slaHours: complaint.slaHours,
-        overdue:
-          complaint.dueAt &&
-          ["OPEN", "IN_PROGRESS", "ESCALATED"].includes(complaint.status) &&
-          complaint.dueAt < new Date(),
-      };
-    });
+    const data = complaints
+      .filter(
+        (complaint) =>
+          complaint.location &&
+          complaint.location.coordinates &&
+          Array.isArray(complaint.location.coordinates.coordinates) &&
+          complaint.location.coordinates.coordinates.length === 2 &&
+          typeof complaint.location.coordinates.coordinates[0] === 'number' &&
+          typeof complaint.location.coordinates.coordinates[1] === 'number'
+      )
+      .map((complaint) => {
+        const [lng, lat] = complaint.location.coordinates.coordinates;
+        return {
+          id: complaint._id,
+          lat,
+          lng,
+          status: complaint.status,
+          priority: complaint.priority,
+          city: complaint.location?.city || null,
+          country: complaint.location?.country || null,
+          createdAt: complaint.createdAt,
+          slaHours: complaint.slaHours,
+          overdue:
+            complaint.dueAt &&
+            ["OPEN", "IN_PROGRESS", "ESCALATED"].includes(complaint.status) &&
+            complaint.dueAt < new Date(),
+        };
+      });
 
     res.json(data);
   } catch (error) {
