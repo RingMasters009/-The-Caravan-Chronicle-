@@ -74,7 +74,7 @@ const complaintSchema = new mongoose.Schema(
     reporter: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
     },
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
