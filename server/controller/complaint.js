@@ -82,19 +82,84 @@ exports.createComplaint = async (req, res) => {
       slaHours,
     } = req.body;
 
-    if (!title || !description) {
+    const normalizedTitle = typeof title === "string" ? title.trim() : "";
+    const normalizedDescription =
+      typeof description === "string" ? description.trim() : "";
+
+    if (!normalizedTitle || !normalizedDescription) {
       return res.status(400).json({
         message: "Title and description are required",
       });
     }
 
+    let locationPayload = undefined;
+    if (location && typeof location === "object") {
+      const {
+        address,
+        city,
+        state,
+        postalCode,
+        country,
+        placeId,
+        latitude,
+        longitude,
+        coordinates,
+      } = location;
+
+      const geoCoordinates =
+        Array.isArray(coordinates?.coordinates) && coordinates.coordinates.length === 2
+          ? {
+              type: coordinates.type || "Point",
+              coordinates: coordinates.coordinates,
+            }
+          : typeof longitude === "number" && typeof latitude === "number"
+          ? {
+              type: "Point",
+              coordinates: [longitude, latitude],
+            }
+          : undefined;
+
+      locationPayload = {
+        address: address ? address.trim() : undefined,
+        city: city ? city.trim() : undefined,
+        state: state ? state.trim() : undefined,
+        postalCode: postalCode ? postalCode.trim() : undefined,
+        country: country ? country.trim() : undefined,
+        placeId: placeId ? placeId.trim() : undefined,
+        latitude:
+          typeof latitude === "number"
+            ? latitude
+            : geoCoordinates?.coordinates?.[1],
+        longitude:
+          typeof longitude === "number"
+            ? longitude
+            : geoCoordinates?.coordinates?.[0],
+        coordinates: geoCoordinates,
+      };
+
+      Object.keys(locationPayload).forEach((key) => {
+        const value = locationPayload[key];
+        if (
+          value === undefined ||
+          value === null ||
+          (typeof value === "string" && value.trim() === "")
+        ) {
+          delete locationPayload[key];
+        }
+      });
+
+      if (!Object.keys(locationPayload).length) {
+        locationPayload = undefined;
+      }
+    }
+
     const complaint = await Complaint.create({
-      title,
-      description,
+      title: normalizedTitle,
+      description: normalizedDescription,
       type,
       priority,
       attachments,
-      location,
+      location: locationPayload,
       reporter: req.user._id,
       slaHours,
     });
