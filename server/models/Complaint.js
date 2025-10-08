@@ -88,7 +88,12 @@ const complaintSchema = new mongoose.Schema(
     location: {
       address: String,
       city: String,
+      state: String,
+      postalCode: String,
       country: String,
+      placeId: String,
+      latitude: Number,
+      longitude: Number,
       coordinates: {
         type: {
           type: String,
