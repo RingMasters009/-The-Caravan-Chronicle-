@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require("express");
+const session = require("express-session");
+const passport = require("passport");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
@@ -8,6 +10,7 @@ const morgan = require("morgan");
 // Models (ensure they are registered)
 require("./models/user.model");
 const { Complaint } = require("./models/Complaint");
+require("./auth/google");
 
 const app = express();
 
@@ -32,6 +35,14 @@ app.use(
     credentials: true
   })
 );
+app.use(session({
+  secret: process.env.JWT_SECRET || 'your_jwt_secret_key_here',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false },
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
