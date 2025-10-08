@@ -22,27 +22,30 @@ export default function MapComponent() {
       }).addTo(mapRef.current);
     }
 
+
     async function loadHeatmap() {
       let data = [];
-
       try {
-        const res = await fetch("http://localhost:3000/api/complaints");
+        const res = await fetch("http://localhost:5000/api/complaints/heatmap");
         if (res.ok) data = await res.json();
       } catch (err) {
-        console.warn("random");
+        console.warn("Failed to fetch heatmap data", err);
       }
-      if (!Array.isArray(data) || data.length === 0) {
-        data = Array.from({ length: 25 }, () => ({
-          lat: 20 + Math.random() * 10,
-          lng: 70 + Math.random() * 15,
-          city: "Mock City",
-          country: "India",
-          description: "Sample complaint for testing",
-          status: ["Open", "In Progress", "Resolved"][Math.floor(Math.random() * 3)],
-          createdAt: Date.now(),
-          slaHours: 48,
-          overdue: Math.random() < 0.3,
-        }));
+      // Map backend fields to lat/lng for the map, only if data is valid
+      if (Array.isArray(data) && data.length > 0) {
+        data = data.map((c) => ({
+          lat: c.lat ?? (c.location ? c.location.latitude : undefined),
+          lng: c.lng ?? (c.location ? c.location.longitude : undefined),
+          city: c.city || (c.location ? c.location.city : undefined),
+          country: c.country || (c.location ? c.location.country : undefined),
+          description: c.description || "Complaint",
+          status: c.status,
+          createdAt: c.createdAt,
+          slaHours: c.slaHours,
+          overdue: c.overdue,
+        })).filter((c) => typeof c.lat === "number" && typeof c.lng === "number");
+      } else {
+        data = [];
       }
       if (heatLayerRef.current) {
         mapRef.current.removeLayer(heatLayerRef.current);
@@ -63,10 +66,10 @@ export default function MapComponent() {
         }).addTo(mapRef.current);
 
         marker.bindPopup(`
-          <b>${c.city}, ${c.country}</b><br/>
+          <b>${c.city || "Unknown"}, ${c.country || ""}</b><br/>
           ${c.description}<br/>
           Status: ${c.status}<br/>
-          Created: ${new Date(c.createdAt).toLocaleString()}<br/>
+          Created: ${c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}<br/>
           SLA: ${c.slaHours}h<br/>
           ${
             c.overdue
@@ -99,3 +102,4 @@ export default function MapComponent() {
     />
   );
 }
+
