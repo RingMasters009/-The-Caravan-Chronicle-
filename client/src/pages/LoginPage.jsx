@@ -1,4 +1,21 @@
 import React, { useState } from "react";
+import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider } from "../firebase";
+  // Google Sign-In handler
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      // You can send result.user info to your backend here if needed
+      // For now, just redirect or set user context
+      navigate("/");
+    } catch (err) {
+      setError("Google sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 import { Link, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 
@@ -137,6 +154,17 @@ const LoginPage = () => {
                   className="w-full btn-primary-gradient font-bold py-3 px-6 text-lg rounded-xl mt-4 transition-all disabled:bg-gray-500"
                 >
                   {loading ? "Logging In..." : "Login"}
+                </button>
+              </div>
+              <div className="mt-4 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  className="w-full bg-white text-slate-900 font-bold py-3 px-6 text-lg rounded-xl border border-slate-300 flex items-center justify-center gap-2 hover:bg-slate-100"
+                  disabled={loading}
+                >
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="h-6 w-6" />
+                  Sign in with Google
                 </button>
               </div>
             </form>
