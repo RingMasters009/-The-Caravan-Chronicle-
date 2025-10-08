@@ -28,8 +28,7 @@ router.get('/stats', protect, requireRole('Staff', 'Admin'), getDashboardStats);
 router.get('/export/csv', protect, requireRole('Staff', 'Admin'), exportComplaintsCsv);
 
 // Heatmap data - staff/admin only
-router.get('/heatmap', protect, requireRole('Staff', 'Admin'), getHeatmapData);
-
+router.get('/heatmap', getHeatmapData);
 // Public summary (no auth)
 router.get('/public/summary', getPublicSummary);
 
