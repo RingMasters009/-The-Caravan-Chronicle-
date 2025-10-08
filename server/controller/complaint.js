@@ -176,7 +176,7 @@ exports.getComplaints = async (req, res) => {
     const { page = 1, limit = 20, sort = "-createdAt" } = req.query;
     const filters = buildFilters(req.user, req.query);
 
-    if (req.user.role === "Staff") {
+    if (req.user.role === "Staff") {  
       ensureStaffAssignmentFilter(filters, req.user._id);
     }
 
