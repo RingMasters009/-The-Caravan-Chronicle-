@@ -70,11 +70,11 @@ const HomePage = () => {
           <main className="flex-grow flex items-center justify-center p-4">
             <div className="container mx-auto max-w-4xl text-center">
               <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-4 header-shadow fade-in-up">
-                Keeping the Magic in Motion
+                Restore Order to Our Caravan City
               </h1>
               <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-10 fade-in-up">
-                The official portal for maintaining the splendor of the Circus of Wonders.
-                Report, track, and witness the resolution of civic issues.
+                Spot a broken lantern, a muddy path, or a frayed safety net? Share it here.
+                Our crew will respond, resolve, and keep the travelling circus safe for everyone.
               </p>
               <div className="flex flex-col sm:flex-row justify-center items-center gap-4 fade-in-up">
                 <Link
@@ -84,10 +84,10 @@ const HomePage = () => {
                   Report a New Issue
                 </Link>
                 <Link
-                  to="/track"
+                  to="/login"
                   className="btn-secondary-outline font-bold py-4 px-10 text-lg rounded-xl inline-block w-full sm:w-auto"
                 >
-                  Track an Existing Issue
+                  Sign In to Track &amp; Verify
                 </Link>
               </div>
             </div>
@@ -97,28 +97,28 @@ const HomePage = () => {
           <section id="how-it-works" className="w-full p-4 py-16">
             <div className="container mx-auto max-w-6xl text-center">
               <h2 className="text-4xl font-bold mb-12 header-shadow text-white">
-                A Simple Path to Resolution
+                How We Put Every Complaint on the Map
               </h2>
               <div className="grid md:grid-cols-3 gap-8">
                 <div className="glass-card p-8 rounded-2xl">
                   <div className="text-5xl mb-4">📍</div>
                   <h3 className="text-2xl font-semibold mb-2">Pinpoint the Problem</h3>
                   <p className="text-gray-300">
-                    Use our interactive map to drop a pin on the exact location of any issue.
+                    Drop a marker where tents leak, wires spark, or pathways break. Give us the exact spot.
                   </p>
                 </div>
                 <div className="glass-card p-8 rounded-2xl">
-                  <div className="text-5xl mb-4">🎫</div>
-                  <h3 className="text-2xl font-semibold mb-2">Create a Chronicle</h3>
+                  <div className="text-5xl mb-4">📝</div>
+                  <h3 className="text-2xl font-semibold mb-2">Log the Hazard</h3>
                   <p className="text-gray-300">
-                    Submit a report with details and a photo to receive a unique tracking ticket.
+                    Add details, attach evidence if you can, and create a ticket our maintenance crew can act on.
                   </p>
                 </div>
                 <div className="glass-card p-8 rounded-2xl">
-                  <div className="text-5xl mb-4">✨</div>
-                  <h3 className="text-2xl font-semibold mb-2">Witness the Magic</h3>
+                  <div className="text-5xl mb-4">✅</div>
+                  <h3 className="text-2xl font-semibold mb-2">Confirm the Fix</h3>
                   <p className="text-gray-300">
-                    Receive real-time updates and a final notification when the issue is resolved.
+                    Follow progress, get alerts when work is done, and verify the fix before we close the case.
                   </p>
                 </div>
               </div>
@@ -130,14 +130,14 @@ const HomePage = () => {
             <div className="container mx-auto max-w-7xl">
               <div className="text-center mb-12">
                 <h2 className="text-4xl font-bold text-white header-shadow">
-                  Live City Status
+                  Field Control Center
                 </h2>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* ✅ Issue Heatmap */}
                 <div className="lg:col-span-2">
                   <div className="glass-card rounded-2xl p-6 h-full">
-                    <h3 className="text-2xl font-bold mb-4">Issue Heatmap</h3>
+                    <h3 className="text-2xl font-bold mb-4">Active Incident Map</h3>
                     <div className="rounded-lg overflow-hidden" style={{ height: "420px" }}>
                       <MapComponent />
                     </div>
@@ -147,27 +147,27 @@ const HomePage = () => {
                 {/* Live Feed */}
                 <div>
                   <div className="glass-card rounded-2xl p-6 h-full">
-                    <h3 className="text-2xl font-bold mb-4">Live Feed</h3>
+                    <h3 className="text-2xl font-bold mb-4">Latest dispatches</h3>
                     <div className="space-y-4">
                       <div className="flex items-center gap-4 border-b border-gray-700/50 pb-3">
                         <div className="w-3 h-3 rounded-full bg-orange-400 flex-shrink-0"></div>
                         <div>
-                          <p className="font-semibold text-white">Flickering Lights at Main Stage</p>
-                          <p className="text-xs text-gray-400">Status: In Progress</p>
+                          <p className="font-semibold text-white">Loose rigging above aerial ring</p>
+                          <p className="text-xs text-gray-400">Status: Crew on site</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 border-b border-gray-700/50 pb-3">
                         <div className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></div>
                         <div>
-                          <p className="font-semibold text-white">Overflowing Bin near Midway</p>
-                          <p className="text-xs text-gray-400">Status: Overdue</p>
+                          <p className="font-semibold text-white">Flooded walkway behind food stalls</p>
+                          <p className="text-xs text-gray-400">Status: Awaiting pump-out</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="w-3 h-3 rounded-full bg-cyan-400 flex-shrink-0"></div>
                         <div>
-                          <p className="font-semibold text-white">Damaged Safety Rail</p>
-                          <p className="text-xs text-gray-400">Status: Resolved</p>
+                          <p className="font-semibold text-white">Replaced lanterns along caravan row</p>
+                          <p className="text-xs text-gray-400">Status: Verified by citizen</p>
                         </div>
                       </div>
                     </div>

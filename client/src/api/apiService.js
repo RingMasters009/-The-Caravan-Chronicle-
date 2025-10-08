@@ -82,6 +82,15 @@ export const apiService = {
     return handleResponse(response);
   },
 
+  verifyComplaint: async (id, action, notes) => {
+    const response = await fetch(`${API_URL}/complaints/${id}/verify`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ action, notes }),
+    });
+    return handleResponse(response);
+  },
+
   updateComplaintStatus: async (id, status, notes) => {
     const response = await fetch(`${API_URL}/complaints/${id}/status`, {
       method: "PATCH",
