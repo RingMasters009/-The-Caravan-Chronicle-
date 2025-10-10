@@ -1,55 +1,70 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/user.model");
+const User = require("../models/user.model"); // ✅ correct import
 
-/**
- * Middleware to protect routes that require authentication.
- * It verifies the JWT token from the Authorization header.
- */
 const protect = async (req, res, next) => {
   let token;
 
-  // Check if the token exists in the header and starts with 'Bearer'
-  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-    try {
-      // 1. Extract the token from the header (e.g., "Bearer eyJhbGci...")
-      token = req.headers.authorization.split(" ")[1];
-
-      // 2. Verify the token using your JWT_SECRET
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-
-      // 3. Find the user by the ID from the token and attach it to the request object
-      req.user = await User.findById(decoded.id).select("-password");
-
-      if (!req.user) {
-        return res.status(401).json({ message: "Not authorized, user not found" });
-      }
-
-      // 4. If everything is valid, proceed to the next function (the controller)
-      return next();
-    } catch (error) {
-      console.error("Token verification failed:", error);
-      if (error.name === 'JsonWebTokenError') {
-        return res.status(401).json({ message: "Invalid token" });
-      } else if (error.name === 'TokenExpiredError') {
-        return res.status(401).json({ message: "Token expired" });
-      }
-      return res.status(401).json({ message: "Not authorized, token failed" });
-    }
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
-  return res.status(401).json({ message: "Not authorized, no token provided" });
+  if (!token) {
+    return res
+      .status(401)
+      .json({ message: "Not authorized — no token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      return res
+        .status(401)
+        .json({ message: "Not authorized — user not found" });
+    }
+
+    req.user = user;
+    console.log(
+      `👤 Authenticated user: ${user.email || user.fullName || user._id}, Role: ${user.role}`
+    );
+
+    next();
+  } catch (error) {
+    console.error("❌ Token verification failed:", error.message);
+
+    if (error.name === "TokenExpiredError") {
+      return res
+        .status(401)
+        .json({ message: "Session expired — please log in again" });
+    }
+
+    return res
+      .status(401)
+      .json({ message: "Invalid or expired token", error: error.message });
+  }
 };
 
-const requireRole = (...roles) => (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ message: "Not authorized" });
-  }
+const requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
 
-  if (!roles.includes(req.user.role)) {
-    return res.status(403).json({ message: "Forbidden: insufficient permissions" });
-  }
+    if (
+      req.user.role === "Admin" ||
+      roles.map((r) => r.toLowerCase()).includes(req.user.role.toLowerCase())
+    ) {
+      return next();
+    }
 
-  next();
+    return res.status(403).json({
+      message: "Forbidden — insufficient permissions for this route",
+    });
+  };
 };
 
 module.exports = { protect, requireRole };

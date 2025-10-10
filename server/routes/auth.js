@@ -1,34 +1,41 @@
-const express = require('express');
-const passport = require('passport');
+const express = require("express");
+const passport = require("passport");
 const router = express.Router();
-const authController = require('../controller/auth');
-const { protect } = require('../middleware/auth');
+const userController = require("../controller/user"); // ✅ use updated user controller
+const { protect } = require("../middleware/auth");
 
-// Google OAuth login
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-// Google OAuth callback
-router.get('/google/callback',
-	passport.authenticate('google', { failureRedirect: '/login', session: true }),
-	(req, res) => {
-		// Redirect to frontend after successful login
-		res.redirect('http://localhost:3000/dashboard/citizen');
-	}
+// --- GOOGLE OAUTH LOGIN ---
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
-// @route   POST /api/auth/register
-// @desc    Register a new user
-// @access  Public
-router.post('/register', authController.register);
+// --- GOOGLE OAUTH CALLBACK ---
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login", session: true }),
+  (req, res) => {
+    // ✅ Redirect to frontend after successful login
+    res.redirect("http://localhost:3000/dashboard/citizen");
+  }
+);
 
+// --- REGISTER USER ---
+// @route   POST /api/auth/register
+// @desc    Register a new user (includes role, city, profession)
+// @access  Public
+router.post("/register", userController.register);
+
+// --- LOGIN USER ---
 // @route   POST /api/auth/login
 // @desc    Authenticate user & get token
 // @access  Public
-router.post('/login', authController.login);
+router.post("/login", userController.login);
 
+// --- GET CURRENT USER ---
 // @route   GET /api/auth/me
 // @desc    Get current user's profile
 // @access  Private
-router.get('/me', protect, authController.getMe);
+router.get("/me", protect, userController.getMe);
 
 module.exports = router;

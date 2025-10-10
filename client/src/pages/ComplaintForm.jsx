@@ -3,7 +3,60 @@ import { useNavigate } from "react-router-dom";
 import { apiService } from "../api/apiService";
 import MapPicker from "../MapPicker";
 
-const typeOptions = ["Road Damage", "Water Leakage", "Garbage", "Lighting", "Safety", "Other"];
+const professionOptions = [
+  "Electrician",
+  "Plumber",
+  "Cleaner",
+  "Mechanic",
+  "Other",
+];
+
+// ✅ Problem types mapped to professions (matching your schema exactly)
+const problemOptions = {
+  Electrician: [
+    "Electric Shortage",
+    "Lighting",
+    "Power Outage",
+    "Faulty Wiring",
+  ],
+  Plumber: [
+    "Water Leakage",
+    "Clogged Drain",
+    "Broken Pipe",
+    "Water Supply Issue",
+    "Sewage Issue",
+  ],
+  Cleaner: [
+    "Garbage",
+    "Street Cleaning",
+    "Public Restroom Issue",
+    "Waste Management",
+    "Recycling Issue",
+  ],
+  Mechanic: [
+    "Abandoned Vehicle",
+    "Traffic Signal Issue",
+    "Illegal Parking",
+    "Road Damage",
+    "Potholes",
+    "Road Blockage",
+  ],
+  Other: [
+    "Tree Damage",
+    "Park Maintenance",
+    "Graffiti",
+    "Vandalism",
+    "Noise Complaint",
+    "Air Quality",
+    "Animal Control",
+    "Pest Control",
+    "Fire Hazard",
+    "Health Hazard",
+    "Safety",
+    "Other",
+  ],
+};
+
 const priorityOptions = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
 const ComplaintForm = () => {
@@ -12,7 +65,8 @@ const ComplaintForm = () => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    type: "Other",
+    profession: "",
+    type: "",
     priority: "MEDIUM",
     location: {
       address: "",
@@ -27,15 +81,25 @@ const ComplaintForm = () => {
   const [error, setError] = useState("");
   const [userLocation, setUserLocation] = useState(null);
 
-  // ✅ Handles input and textarea changes properly
+  // ✅ Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // Handle nested location fields
+    // handle nested location
     if (name === "address" || name === "city") {
       setFormData((prev) => ({
         ...prev,
         location: { ...prev.location, [name]: value },
+      }));
+      return;
+    }
+
+    // reset type when profession changes
+    if (name === "profession") {
+      setFormData((prev) => ({
+        ...prev,
+        profession: value,
+        type: "",
       }));
       return;
     }
@@ -58,10 +122,9 @@ const ComplaintForm = () => {
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by your browser.");
+      setError("Geolocation not supported.");
       return;
     }
-
     setError("");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -75,9 +138,7 @@ const ComplaintForm = () => {
           },
         }));
       },
-      () => {
-        setError("Unable to fetch your location. Please allow location access.");
-      }
+      () => setError("Unable to fetch your location.")
     );
   };
 
@@ -89,21 +150,29 @@ const ComplaintForm = () => {
     }
   };
 
-  // ✅ Fixed validation logic
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    const trimmedTitle = formData.title.trim();
-    const trimmedDesc = formData.description.trim();
+    const { title, description, profession, type, location } = formData;
 
-    if (!trimmedTitle || !trimmedDesc) {
-      setError("Please provide both a title and description.");
+    if (!title.trim() || !description.trim()) {
+      setError("Please provide a title and description.");
       return;
     }
 
-    if (!formData.location.coordinates.coordinates?.length) {
-      setError("Please pick the issue location on the map.");
+    if (!profession) {
+      setError("Please select your profession.");
+      return;
+    }
+
+    if (!type) {
+      setError("Please select the problem type.");
+      return;
+    }
+
+    if (!location.coordinates.coordinates?.length) {
+      setError("Please mark the issue location on the map.");
       return;
     }
 
@@ -111,29 +180,16 @@ const ComplaintForm = () => {
       setLoading(true);
 
       const payload = {
-        title: trimmedTitle,
-        description: trimmedDesc,
-        type: formData.type,
-        priority: formData.priority,
-        location: {
-          address: formData.location.address?.trim() || undefined,
-          city: formData.location.city?.trim() || undefined,
-          coordinates: formData.location.coordinates,
-        },
+        ...formData,
+        title: title.trim(),
+        description: description.trim(),
       };
 
-      const coords = formData.location.coordinates.coordinates;
-      if (Array.isArray(coords) && coords.length === 2) {
-        payload.location.latitude = coords[1];
-        payload.location.longitude = coords[0];
-      }
-
-      await apiService.createComplaint(payload);
-
+      await apiService.createComplaint(payload, image);
       navigate("/dashboard/citizen");
     } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to submit complaint. Try again.");
+      setError(err.message || "Failed to submit complaint.");
     } finally {
       setLoading(false);
     }
@@ -142,9 +198,12 @@ const ComplaintForm = () => {
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-slate-100">Report a New Issue</h1>
+        <h1 className="text-2xl font-semibold text-slate-100">
+          Report a New Issue
+        </h1>
         <p className="text-sm text-slate-400">
-          Describe the problem and mark the exact spot so staff can resolve it quickly.
+          Select your profession and describe the issue to help us assign the
+          right staff.
         </p>
       </header>
 
@@ -154,7 +213,9 @@ const ComplaintForm = () => {
       >
         {/* Title */}
         <div>
-          <label className="block text-xs uppercase text-slate-500 mb-2">Title</label>
+          <label className="block text-xs uppercase text-slate-500 mb-2">
+            Title
+          </label>
           <input
             type="text"
             name="title"
@@ -166,9 +227,55 @@ const ComplaintForm = () => {
           />
         </div>
 
+        {/* Profession */}
+        <div>
+          <label className="block text-xs uppercase text-slate-500 mb-2">
+            Profession
+          </label>
+          <select
+            name="profession"
+            value={formData.profession}
+            onChange={handleChange}
+            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-100 border border-slate-700 focus:border-teal-500"
+            required
+          >
+            <option value="">Select Profession</option>
+            {professionOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Problem Type */}
+        {formData.profession && (
+          <div>
+            <label className="block text-xs uppercase text-slate-500 mb-2">
+              Problem Type
+            </label>
+            <select
+              name="type"
+              value={formData.type}
+              onChange={handleChange}
+              className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-100 border border-slate-700 focus:border-teal-500"
+              required
+            >
+              <option value="">Select Problem</option>
+              {problemOptions[formData.profession]?.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Description */}
         <div>
-          <label className="block text-xs uppercase text-slate-500 mb-2">Description</label>
+          <label className="block text-xs uppercase text-slate-500 mb-2">
+            Description
+          </label>
           <textarea
             name="description"
             rows="4"
@@ -180,41 +287,29 @@ const ComplaintForm = () => {
           ></textarea>
         </div>
 
-        {/* Type & Priority */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs uppercase text-slate-500 mb-2">Type</label>
-            <select
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-100 border border-slate-700 focus:border-teal-500"
-            >
-              {typeOptions.map((opt) => (
-                <option key={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs uppercase text-slate-500 mb-2">Priority</label>
-            <select
-              name="priority"
-              value={formData.priority}
-              onChange={handleChange}
-              className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-100 border border-slate-700 focus:border-teal-500"
-            >
-              {priorityOptions.map((opt) => (
-                <option key={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
+        {/* Priority */}
+        <div>
+          <label className="block text-xs uppercase text-slate-500 mb-2">
+            Priority
+          </label>
+          <select
+            name="priority"
+            value={formData.priority}
+            onChange={handleChange}
+            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-100 border border-slate-700 focus:border-teal-500"
+          >
+            {priorityOptions.map((opt) => (
+              <option key={opt}>{opt}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Address & City */}
+        {/* Address and City */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs uppercase text-slate-500 mb-2">Address</label>
+            <label className="block text-xs uppercase text-slate-500 mb-2">
+              Address
+            </label>
             <input
               type="text"
               name="address"
@@ -224,9 +319,10 @@ const ComplaintForm = () => {
               placeholder="Enter address"
             />
           </div>
-
           <div>
-            <label className="block text-xs uppercase text-slate-500 mb-2">City</label>
+            <label className="block text-xs uppercase text-slate-500 mb-2">
+              City
+            </label>
             <input
               type="text"
               name="city"
@@ -240,7 +336,9 @@ const ComplaintForm = () => {
 
         {/* Image Upload */}
         <div>
-          <label className="block text-xs uppercase text-slate-500 mb-2">Attach Image</label>
+          <label className="block text-xs uppercase text-slate-500 mb-2">
+            Attach Image
+          </label>
           <input
             type="file"
             accept="image/*"
@@ -261,7 +359,6 @@ const ComplaintForm = () => {
           <label className="mb-2 block text-xs uppercase tracking-wide text-slate-500">
             Pick location on map
           </label>
-
           <div className="mb-3 flex justify-end">
             <button
               type="button"
@@ -271,22 +368,9 @@ const ComplaintForm = () => {
               📍 Use My Location
             </button>
           </div>
-
           <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60">
             <MapPicker onSelect={handleMapSelect} userLocation={userLocation} />
           </div>
-
-          {formData.location.coordinates.coordinates?.length ? (
-            <p className="mt-2 text-xs text-slate-400">
-              Selected coordinates:{" "}
-              {formData.location.coordinates.coordinates[1].toFixed(4)},{" "}
-              {formData.location.coordinates.coordinates[0].toFixed(4)}
-            </p>
-          ) : (
-            <p className="mt-2 text-xs text-slate-500">
-              Tap on the map above or use your current location.
-            </p>
-          )}
         </div>
 
         {/* Error */}

@@ -19,7 +19,8 @@ const CitizenDashboard = () => {
     try {
       setLoading(true);
       const data = await apiService.getComplaints({});
-      setComplaints(data?.items ?? []);
+      setComplaints(Array.isArray(data) ? data : data?.items ?? []);
+
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load complaints");

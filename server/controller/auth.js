@@ -1,10 +1,10 @@
 const User = require('../models/user.model');
 const jwt = require('jsonwebtoken');
 
-// Register a new user
+// ==================== REGISTER ====================
 exports.register = async (req, res) => {
   try {
-    const { fullName, email, password } = req.body;
+    const { fullName, email, password, role, city, profession, adminCode } = req.body;
 
     // Check if user already exists
     let user = await User.findOne({ email });
@@ -12,12 +12,34 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Determine user role:
+    // - If no users exist, first registered user becomes Admin automatically.
+    // - If "role" is provided, validate it properly.
+    let finalRole = role || 'User';
+    const userCount = await User.countDocuments({});
+
+    if (userCount === 0) {
+      finalRole = 'Admin';
+    } else if (role === 'Admin') {
+      // Only allow Admin creation with secret code
+      if (adminCode !== process.env.ADMIN_CODE) {
+        return res.status(403).json({ message: 'Invalid admin code' });
+      }
+    }
+
+    // If registering as staff, profession is required
+    if (finalRole === 'Staff' && !profession) {
+      return res.status(400).json({ message: 'Profession is required for staff' });
+    }
+
     // Create new user
     user = new User({
       fullName,
       email,
       password,
-      role: (await User.countDocuments({})) === 0 ? 'Admin' : 'User' // First user is admin
+      role: finalRole,
+      city: city || null,
+      profession: profession || null,
     });
 
     await user.save();
@@ -31,7 +53,7 @@ exports.register = async (req, res) => {
 
     res.status(201).json({
       token,
-      user: userResponse
+      user: userResponse,
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -47,41 +69,46 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login user
+// ==================== LOGIN ====================
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    console.log("🟡 Login attempt received:", req.body);
 
-    // Check if user exists
+    const { email, password } = req.body;
+    if (!email || !password) {
+      console.log("❌ Missing credentials");
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      console.log("❌ User not found");
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      console.log("❌ Invalid password");
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Generate JWT
-    const token = user.generateAuthToken();
+    const token = jwt.sign(
+      { id: user._id, role: user.role, city: user.city },
+      process.env.JWT_SECRET || "supersecretkey123",
+      { expiresIn: "7d" }
+    );
 
-    // Return user data (excluding password) and token
-    const userResponse = user.toObject();
-    delete userResponse.password;
+    console.log("✅ Login successful:", user.email);
+    res.json({ token, user });
 
-    res.json({
-      token,
-      user: userResponse
-    });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("🔥 Login error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-// Get current user
+
+// ==================== GET CURRENT USER ====================
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');

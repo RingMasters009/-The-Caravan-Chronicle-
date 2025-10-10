@@ -1,44 +1,38 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const complaintController = require("../controller/complaint");
+const { protect, requireRole } = require("../middleware/auth");
 
-const {
-  createComplaint,
-  getComplaints,
-  getComplaintById,
-  updateComplaintStatus,
-  assignComplaint,
-  getDashboardStats,
-  exportComplaintsCsv,
-  getHeatmapData,
-  getPublicSummary,
-} = require('../controller/complaint');
+// 🟢 Create new complaint (Citizen/User)
+router.post(
+  "/",
+  protect,
+  complaintController.uploadComplaintImage,
+  complaintController.createComplaint
+);
 
-const { protect, requireRole } = require('../middleware/auth');
+// 🗺️ Public heatmap (no auth required)
+router.get("/heatmap", complaintController.getHeatmapData);
 
-// Create complaint (citizen portal)
-router.post('/', protect, createComplaint);
+// 📊 Complaint statistics (Admin only)
+router.get("/stats", protect, requireRole("Admin"), complaintController.getComplaintStats);
 
-// List complaints with filtering & pagination
-router.get('/', protect, getComplaints);
+// 🧾 Get all complaints (Admin/Staff/User — logic handled inside controller)
+router.get("/", protect, complaintController.getAllComplaints);
 
-// Dashboard stats for staff/admin
-router.get('/stats', protect, requireRole('Staff', 'Admin'), getDashboardStats);
+// 📋 Get single complaint by ID
+router.get("/:id", protect, complaintController.getComplaintById);
 
-// CSV export - staff/admin only
-router.get('/export/csv', protect, requireRole('Staff', 'Admin'), exportComplaintsCsv);
+// 👷 Assign complaint to staff (Admin only)
+router.patch("/:id/assign", protect, requireRole("Admin"), complaintController.assignComplaint);
 
-// Heatmap data - staff/admin only
-router.get('/heatmap', getHeatmapData);
-// Public summary (no auth)
-router.get('/public/summary', getPublicSummary);
+// 🔄 Update complaint status (Staff or Admin)
+router.patch("/:id/status", protect, complaintController.updateComplaintStatus);
 
-// Single complaint detail
-router.get('/:id', protect, getComplaintById);
+// 🛠️ Update full complaint (Admin only)
+router.patch("/:id", protect, requireRole("Admin"), complaintController.updateComplaint);
 
-// Status update - staff/admin
-router.patch('/:id/status', protect, requireRole('Staff', 'Admin'), updateComplaintStatus);
-
-// Assign to staff - admin only
-router.patch('/:id/assign', protect, requireRole('Admin'), assignComplaint);
+// ❌ Delete complaint (Admin only)
+router.delete("/:id", protect, requireRole("Admin"), complaintController.deleteComplaint);
 
 module.exports = router;

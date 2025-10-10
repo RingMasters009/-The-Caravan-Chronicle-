@@ -18,72 +18,79 @@ export const UserProvider = ({ children }) => {
 
     if (token && userData) {
       try {
-        // Parse the stored user data and restore the session
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
       } catch (error) {
         console.error("Failed to parse user data from localStorage", error);
-        localStorage.clear(); // Clear corrupted data if parsing fails
+        localStorage.clear();
       }
     }
-    setLoading(false); // Finished the initial check
+    setLoading(false);
   }, []);
 
-  // Function to handle user login
+  // --- LOGIN ---
   const login = async (email, password) => {
     try {
-      const data = await apiService.login(email, password);
-      // Store token and user details for session persistence
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user)); // Store user object as a string
-      setUser(data.user);
-      return { success: true };
-    } catch (error) {
-      console.error("Login failed:", error);
-      return { success: false, message: error.toString() || "Login failed" };
-    }
-  };
+   const data = await apiService.login({ email, password });
 
-  // Function to handle user registration
-  const register = async (fullName, email, password) => {
-    try {
-      const data = await apiService.register(fullName, email, password);
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       setUser(data.user);
       return { success: true };
     } catch (error) {
-      console.error("Registration failed:", error);
-      return {
-        success: false,
-        message: error.toString() || "Registration failed",
-      };
+      console.error("Login failed:", error);
+      return { success: false, message: error.message || "Login failed" };
     }
   };
 
-  // Function to handle user logout
+  // --- REGISTER (updated to include role, city, profession) ---
+const register = async (fullName, email, password, role, city, profession) => {
+  try {
+    const normalizedProfession =
+      role === "Staff" && profession ? profession : null;
+
+    const data = await apiService.register({
+      fullName,
+      email,
+      password,
+      role,
+      city,
+      profession: normalizedProfession,
+      adminCode: "caravan123",
+    });
+
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    setUser(data.user);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Registration failed:", error.response?.data || error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Registration failed",
+    };
+  }
+};
+
+
+  // --- LOGOUT ---
   const logout = () => {
-    // Clear session from storage and state
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
-    navigate("/login"); // Redirect to login page after logout
+    navigate("/login");
   };
 
-  // Helper function to check if a user is logged in
-  const isAuthenticated = () => {
-    return !!user;
-  };
+  // --- AUTH HELPERS ---
+  const isAuthenticated = () => !!user;
 
-  // Helper function to check if a user has the required role (e.g., 'Admin', 'Staff')
   const isAuthorized = (requiredRole) => {
     if (!user) return false;
-    // Admins are authorized for everything
     if (user.role === "Admin") return true;
     return user.role === requiredRole;
   };
 
-  // The value object contains all the state and functions we want to share with child components
   const value = {
     user,
     loading,
@@ -94,8 +101,6 @@ export const UserProvider = ({ children }) => {
     isAuthorized,
   };
 
-  // Render the provider, passing the `value` to all children.
-  // The `!loading && children` part prevents rendering the app until the initial user check is complete.
   return (
     <UserContext.Provider value={value}>
       {!loading && children}
@@ -103,10 +108,9 @@ export const UserProvider = ({ children }) => {
   );
 };
 
-// 3. Create a custom hook for easy and clean access to the context
+// 3. Custom hook for easy access
 export const useUser = () => {
   const context = useContext(UserContext);
-  // This error check ensures the hook is used within a component wrapped by UserProvider
   if (context === undefined) {
     throw new Error("useUser must be used within a UserProvider");
   }

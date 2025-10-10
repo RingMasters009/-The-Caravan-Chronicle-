@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 const morgan = require("morgan");
+console.log("JWT Secret:", process.env.JWT_SECRET);
 
 // Models (ensure they are registered)
 require("./models/user.model");
@@ -63,6 +64,9 @@ mongoose.connect(mongoURI, {
 const authRoutes = require('./routes/auth');
 const complaintRoutes = require('./routes/complaints');
 const userRoutes = require('./routes/users');
+const publicRoutes = require("./routes/publicRoutes");
+const staffRoutes = require("./routes/staff");
+app.use("/api/public", publicRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -73,6 +77,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/staff', staffRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

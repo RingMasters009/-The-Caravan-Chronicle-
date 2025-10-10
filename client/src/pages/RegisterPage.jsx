@@ -42,6 +42,10 @@ const RegisterPage = () => {
     email: "",
     password: "",
     confirmPassword: "",
+    role: "User",
+    city: "",
+    profession: "",
+    adminCode: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,16 +59,31 @@ const RegisterPage = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
+
+    // ✅ Default profession when not staff
+    const validProfession =
+      formData.role === "Staff"
+        ? formData.profession || "Other"
+        : "None";
+
+    // ✅ Default city to avoid empty string errors
+    const validCity = formData.city.trim() || "Unknown";
+
     setLoading(true);
     try {
       const result = await register(
-        formData.fullName,
-        formData.email,
-        formData.password
+        formData.fullName.trim(),
+        formData.email.trim(),
+        formData.password,
+        formData.role,
+        validCity,
+        validProfession,
+        formData.adminCode?.trim() || ""
       );
 
       if (result.success) {
@@ -95,6 +114,7 @@ const RegisterPage = () => {
               </p>
             </div>
             <form onSubmit={handleRegister} className="space-y-6">
+              {/* Full Name */}
               <div>
                 <label className="block text-sm font-semibold mb-2">
                   Full Name
@@ -107,6 +127,8 @@ const RegisterPage = () => {
                   className="form-input w-full p-3 rounded-lg"
                 />
               </div>
+
+              {/* Email */}
               <div>
                 <label className="block text-sm font-semibold mb-2">
                   Email Address
@@ -119,6 +141,76 @@ const RegisterPage = () => {
                   className="form-input w-full p-3 rounded-lg"
                 />
               </div>
+
+              {/* City */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">
+                  City
+                </label>
+                <input
+                  type="text"
+                  name="city"
+                  placeholder="Enter your city"
+                  onChange={handleChange}
+                  className="form-input w-full p-3 rounded-lg"
+                />
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-sm font-semibold mb-2">
+                  Role
+                </label>
+                <select
+                  name="role"
+                  onChange={handleChange}
+                  value={formData.role}
+                  className="form-input w-full p-3 rounded-lg text-gray-200 bg-[rgba(10,25,40,0.5)]"
+                >
+                  <option value="User">User</option>
+                  <option value="Staff">Staff</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+
+              {/* Profession (visible only if role === "Staff") */}
+              {formData.role === "Staff" && (
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Profession
+                  </label>
+                  <select
+                    name="profession"
+                    onChange={handleChange}
+                    className="form-input w-full p-3 rounded-lg text-gray-200 bg-[rgba(10,25,40,0.5)]"
+                  >
+                    <option value="">Select Profession</option>
+                    <option value="Electrician">Electrician</option>
+                    <option value="Plumber">Plumber</option>
+                    <option value="Cleaner">Cleaner</option>
+                    <option value="Mechanic">Mechanic</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Admin Code (visible only if role === "Admin") */}
+              {formData.role === "Admin" && (
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Admin Code
+                  </label>
+                  <input
+                    type="password"
+                    name="adminCode"
+                    placeholder="Enter secret admin code"
+                    onChange={handleChange}
+                    className="form-input w-full p-3 rounded-lg"
+                  />
+                </div>
+              )}
+
+              {/* Password */}
               <div>
                 <label className="block text-sm font-semibold mb-2">
                   Password
@@ -131,6 +223,8 @@ const RegisterPage = () => {
                   className="form-input w-full p-3 rounded-lg"
                 />
               </div>
+
+              {/* Confirm Password */}
               <div>
                 <label className="block text-sm font-semibold mb-2">
                   Confirm Password
@@ -143,9 +237,11 @@ const RegisterPage = () => {
                   className="form-input w-full p-3 rounded-lg"
                 />
               </div>
+
               {error && (
                 <p className="text-red-400 text-sm text-center">{error}</p>
               )}
+
               <div>
                 <button
                   type="submit"
@@ -156,6 +252,7 @@ const RegisterPage = () => {
                 </button>
               </div>
             </form>
+
             <p className="text-center text-sm text-gray-400 mt-8">
               Already have an account?{" "}
               <Link

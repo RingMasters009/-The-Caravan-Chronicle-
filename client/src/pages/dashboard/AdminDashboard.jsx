@@ -1,3 +1,4 @@
+// client/src/pages/admin/AdminDashboard.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { apiService } from "../../api/apiService";
 import ComplaintTable from "../../components/complaints/ComplaintTable";
@@ -20,21 +21,50 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Auto-filter by admin's city
+  useEffect(() => {
+    if (!user) return;
+    setFilters((prev) => ({
+      ...prev,
+      city: user?.city || "",
+    }));
+  }, [user]);
+
+  // Fetch complaints, stats, and staff
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
       try {
         setLoading(true);
+
         const [complaintData, statData, staffData] = await Promise.all([
           apiService.getComplaints(filters),
           apiService.getComplaintStats(filters),
           apiService.getStaffMembers(),
         ]);
 
-        setComplaints(complaintData?.items ?? []);
-        setStats(statData ?? { totals: [], overdueCount: 0 });
-        setStaffMembers(staffData ?? []);
+        // normalize complaints: server might return array or { items: [] }
+        const complaintsList = Array.isArray(complaintData)
+          ? complaintData
+          : complaintData?.items ?? [];
+
+        setComplaints(complaintsList);
+
+        // normalize stats: server might return flat object or { summary: { ... } }
+        const normalizedStats = statData?.summary ?? statData ?? {};
+        setStats(normalizedStats);
+
+        // normalize staff list
+        const staffList = Array.isArray(staffData)
+          ? staffData
+          : staffData?.items ?? [];
+
+        const filteredStaff = (staffList ?? []).filter(
+          (s) => s.city === user.city && s.profession
+        );
+        setStaffMembers(filteredStaff);
+
         setError("");
       } catch (err) {
         const message = err.message || "Failed to load admin data";
@@ -52,6 +82,7 @@ const AdminDashboard = () => {
     fetchData();
   }, [filters, user, logout]);
 
+  // Complaint totals - accept both aggregation-array and flat objects
   const totals = useMemo(() => {
     const summary = {
       OPEN: 0,
@@ -60,41 +91,87 @@ const AdminDashboard = () => {
       ESCALATED: 0,
     };
 
-    const totalsArray = Array.isArray(stats?.totals) ? stats.totals : [];
+    if (!stats) return summary;
 
-    totalsArray.forEach((row) => {
-      summary[row._id] = row.count;
-    });
+    // case: aggregation array [{ _id: "OPEN", count: X }, ...]
+    if (Array.isArray(stats?.totals)) {
+      stats.totals.forEach((row) => {
+        if (row._id && typeof row.count === "number") summary[row._id] = row.count;
+      });
+    }
+
+    // case: backend flat keys
+    if (typeof stats === "object") {
+      summary.OPEN = stats.open ?? summary.OPEN;
+      summary.IN_PROGRESS = stats.inProgress ?? summary.IN_PROGRESS;
+      summary.RESOLVED = stats.completed ?? summary.RESOLVED;
+      summary.ESCALATED = stats.escalated ?? summary.ESCALATED;
+    }
 
     return summary;
   }, [stats]);
 
+  // Filters
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
+  const handleReset = () =>
+    setFilters({ ...defaultFilters, city: user?.city || "" });
 
-  const handleReset = () => setFilters(defaultFilters);
-
+  // Status change
   const handleStatusChange = async (id, status) => {
     try {
-      await apiService.updateComplaintStatus(id, status);
+      await apiService.updateComplaintStatus(id, { status });
+      // refresh: keep filters the same to trigger useEffect
       setFilters((prev) => ({ ...prev }));
     } catch (err) {
       console.error("Failed to update status", err);
     }
   };
 
-  const handleAssign = async (id, staffId) => {
+  // Assign complaint
+  const handleAssign = async (complaintId, staffId) => {
     try {
       if (!staffId) return;
-      await apiService.assignComplaint(id, staffId);
+
+      const selectedStaff = staffMembers.find((s) => s._id === staffId);
+      if (!selectedStaff) {
+        alert("Invalid staff member selected.");
+        return;
+      }
+
+      const complaint = complaints.find((c) => c._id === complaintId);
+      if (!complaint) {
+        alert("Complaint not found.");
+        return;
+      }
+
+      if (selectedStaff.city !== complaint.location.city) {
+        alert("Staff must be from the same city as the complaint.");
+        return;
+      }
+
+      const complaintType = complaint.type?.toLowerCase() || "";
+      const profession = selectedStaff.profession?.toLowerCase() || "";
+      const isProfessionMatch =
+        complaintType.includes(profession) || profession.includes(complaintType);
+
+      if (!isProfessionMatch) {
+        alert(
+          `Staff profession (${selectedStaff.profession}) does not match complaint type (${complaint.type}).`
+        );
+        return;
+      }
+
+      await apiService.assignComplaint(complaintId, staffId);
       setFilters((prev) => ({ ...prev }));
     } catch (err) {
       console.error("Failed to assign complaint", err);
     }
   };
 
+  // Export CSV
   const handleExport = async () => {
     try {
       const blob = await apiService.exportComplaintsCsv(filters);
@@ -116,11 +193,14 @@ const AdminDashboard = () => {
           {error}
         </div>
       )}
+
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100">Admin Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-slate-100">
+            Admin Dashboard
+          </h1>
           <p className="text-sm text-slate-400">
-            Oversee every complaint, monitor SLAs, and coordinate the entire circus crew.
+            Manage complaints for your city and assign them to qualified staff.
           </p>
         </div>
         <button
@@ -131,90 +211,56 @@ const AdminDashboard = () => {
         </button>
       </header>
 
+      {/* Filters */}
       <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
           Filters
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-          <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
-              Status
-            </label>
-            <select
-              name="status"
-              value={filters.status}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200"
-            >
-              <option value="">All</option>
-              <option value="OPEN">Open</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="ESCALATED">Escalated</option>
-              <option value="RESOLVED">Resolved</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
-              Priority
-            </label>
-            <select
-              name="priority"
-              value={filters.priority}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200"
-            >
-              <option value="">All</option>
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="CRITICAL">Critical</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
-              Type
-            </label>
-            <select
-              name="type"
-              value={filters.type}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200"
-            >
-              <option value="">All</option>
-              <option value="Road Damage">Road Damage</option>
-              <option value="Water Leakage">Water Leakage</option>
-              <option value="Garbage">Garbage</option>
-              <option value="Lighting">Lighting</option>
-              <option value="Safety">Safety</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
-              City
-            </label>
-            <input
-              type="text"
-              name="city"
-              value={filters.city}
-              onChange={handleChange}
-              placeholder="Wondervale"
-              className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
-              Search
-            </label>
-            <input
-              type="text"
-              name="search"
-              value={filters.search}
-              onChange={handleChange}
-              placeholder="Title or description"
-              className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200"
-            />
-          </div>
+          {["status", "priority", "type", "city", "search"].map((field) => (
+            <div key={field}>
+              <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+                {field.charAt(0).toUpperCase() + field.slice(1)}
+              </label>
+              {field === "status" ? (
+                <select
+                  name="status"
+                  value={filters.status}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200"
+                >
+                  <option value="">All</option>
+                  <option value="OPEN">Open</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="ESCALATED">Escalated</option>
+                  <option value="RESOLVED">Resolved</option>
+                </select>
+              ) : field === "priority" ? (
+                <select
+                  name="priority"
+                  value={filters.priority}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200"
+                >
+                  <option value="">All</option>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                  <option value="CRITICAL">Critical</option>
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  name={field}
+                  value={filters[field]}
+                  onChange={handleChange}
+                  disabled={field === "city"}
+                  placeholder={field === "city" ? user?.city || "City" : "Enter value"}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200"
+                />
+              )}
+            </div>
+          ))}
         </div>
         <div className="mt-4 flex justify-end">
           <button
@@ -226,25 +272,17 @@ const AdminDashboard = () => {
         </div>
       </section>
 
+      {/* Stats */}
       <section className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Open</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-100">{totals.OPEN}</p>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">In Progress</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-100">{totals.IN_PROGRESS}</p>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Escalated</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-100">{totals.ESCALATED}</p>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Resolved</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-100">{totals.RESOLVED}</p>
-        </div>
+        {["OPEN", "IN_PROGRESS", "ESCALATED", "RESOLVED"].map((key) => (
+          <div key={key} className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">{key}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-100">{totals[key]}</p>
+          </div>
+        ))}
       </section>
 
+      {/* Complaint Table */}
       <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-0">
         <ComplaintTable
           complaints={complaints}

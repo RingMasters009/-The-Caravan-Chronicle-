@@ -2,7 +2,56 @@ const mongoose = require('mongoose');
 
 const statusEnum = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'ESCALATED'];
 const priorityEnum = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-const typeEnum = ['Road Damage', 'Water Leakage', 'Garbage', 'Lighting', 'Safety', 'Other'];
+const typeEnum = [
+  // 👷 Civil / Roads
+  'Road Damage',
+  'Potholes',
+  'Street Light Failure',
+
+  // 💧 Plumbing / Water
+  'Water Leakage',
+  'Clogged Drain',
+  'Broken Pipe',
+
+  // ⚡ Electrical
+  'Electric Shortage',
+  'Lighting',
+  'Power Outage',
+  'Faulty Wiring',
+
+  // 🚗 Vehicle / Traffic
+  'Abandoned Vehicle',
+  'Traffic Signal Issue',
+  'Illegal Parking',
+  'Road Blockage',
+
+  // 🌳 Environment / Public Spaces
+  'Tree Damage',
+  'Park Maintenance',
+  'Graffiti',
+  'Vandalism',
+  'Noise Complaint',
+  'Air Quality',
+
+  // 🏛️ Public Services
+  'Street Cleaning',
+  'Public Restroom Issue',
+  'Waste Management',
+  'Recycling Issue',
+  'Animal Control',
+  'Pest Control',
+  'Water Supply Issue',
+  'Sewage Issue',
+  'Fire Hazard',
+  'Health Hazard',
+  
+
+  // 🗑️ Sanitation / General
+  'Garbage',
+  'Safety',
+  'Other',
+];
+
 
 const statusHistorySchema = new mongoose.Schema(
   {
@@ -59,6 +108,7 @@ const complaintSchema = new mongoose.Schema(
       type: String,
       enum: typeEnum,
       default: 'Other',
+      required: true, // ✅ Ensure complaint always has a type (used for profession match)
     },
     priority: {
       type: String,
@@ -87,7 +137,11 @@ const complaintSchema = new mongoose.Schema(
     },
     location: {
       address: String,
-      city: String,
+      city: {
+        type: String,
+        trim: true,
+        required: true, // ✅ City is mandatory for assignment rule
+      },
       state: String,
       postalCode: String,
       country: String,
@@ -122,15 +176,17 @@ const complaintSchema = new mongoose.Schema(
       submittedAt: Date,
     },
   },
-  {  
+  {
     timestamps: true,
   }
 );
 
+// 📍 Geospatial & performance indexes
 complaintSchema.index({ 'location.coordinates': '2dsphere' });
 complaintSchema.index({ status: 1, priority: 1, type: 1, 'location.city': 1 });
 complaintSchema.index({ createdAt: -1 });
 
+// Automatically compute dueAt from SLA hours
 complaintSchema.pre('save', function (next) {
   const baseDate = this.createdAt || new Date();
   if (!this.dueAt && this.slaHours) {
