@@ -10,53 +10,44 @@ const User = require("../models/user.model");
 // 🧠 Profession Mapping
 // =====================
 const typeToProfessionMap = {
-  // ⚡ Electricity-related
+  // ⚡ Electrical
   "Electricity": "Electrician",
-  "Power Outage": "Electrician",
-  "Street Light Failure": "Electrician",
   "Electric Shortage": "Electrician",
-  "Lighting Issue": "Electrician",
+  "Power Outage": "Electrician",
+  "Faulty Wiring": "Electrician",
+  "Street Light Failure": "Electrician",
+  "Lighting": "Electrician",
 
-  // 💧 Water-related
+  // 💧 Plumbing
   "Water Leakage": "Plumber",
   "Broken Pipe": "Plumber",
   "Clogged Drain": "Plumber",
 
-  // 🗑️ Waste-related
+  // 🗑️ Cleaning
   "Garbage": "Cleaner",
-  "Garbage Collection": "Cleaner",
   "Waste Management": "Cleaner",
-  "Uncollected Waste": "Cleaner",
-  "Sanitation": "Cleaner",
+  "Recycling Issue": "Cleaner",
+  "Public Restroom Issue": "Cleaner",
+  "Street Cleaning": "Cleaner",
+  "Garbage Collection": "Cleaner",
+  "Uncollected Debris": "Cleaner",
 
-  // 🛣️ Road-related
+  // 🛣️ Roads
   "Road Damage": "Road Worker",
   "Potholes": "Road Worker",
-  "Broken Road": "Road Worker",
-  "Footpath Damage": "Road Worker",
+  "Road Blockage": "Road Worker",
 
-  // 🌳 Garden-related
+  // 🌳 Parks
   "Tree Damage": "Gardener",
   "Park Maintenance": "Gardener",
   "Fallen Tree": "Gardener",
 
-  // 🚗 Vehicle/Traffic-related
+  // 🚗 Traffic
   "Abandoned Vehicle": "Traffic Officer",
   "Traffic Signal Issue": "Traffic Officer",
   "Illegal Parking": "Traffic Officer",
-  "Road Blockage": "Traffic Officer",
-  "Accident": "Traffic Officer",
-
 };
 
-// ✅ Helper function to check if staff matches complaint type
-function matchesProfession(staff, complaint) {
-  if (!staff.profession || !complaint.type) return false;
-
-  const profession = staff.profession.toLowerCase();
-  const type = complaint.type.toLowerCase();
-
-  // ✅ Flexible keyword-based rules
   const professionKeywords = {
     electrician: ["electric", "power", "light", "wiring"],
     plumber: ["water", "pipe", "drain", "leak"],
@@ -64,22 +55,18 @@ function matchesProfession(staff, complaint) {
     roadworker: ["road", "pothole", "footpath"],
     gardener: ["tree", "park", "garden", "plant"],
   };
+// ✅ Helper function to check if staff matches complaint type
+function matchesProfession(staff, complaint) {
+  if (!staff.profession || !complaint.type) return false;
 
-  // Match profession name directly
-  if (professionKeywords[profession]) {
-    return professionKeywords[profession].some(keyword =>
-      type.includes(keyword)
-    );
-  }
-
-  // Also allow explicit map fallbacks (if you defined earlier)
+  // 1. Get the expected profession from the complaint type
   const expectedProfession = typeToProfessionMap[complaint.type];
-  if (expectedProfession) {
-    return expectedProfession.toLowerCase() === profession;
-  }
+  if (!expectedProfession) return false; // No mapping exists
 
-  return false;
+  // 2. Perform a direct, case-insensitive comparison
+  return staff.profession.toLowerCase() === expectedProfession.toLowerCase();
 }
+
 
 
 // -----------------------
@@ -313,11 +300,11 @@ exports.assignComplaint = async (req, res) => {
     if (!complaint) return res.status(404).json({ message: "Complaint not found" });
 
     const staff = await User.findById(staffId);
-    if (!staff || staff.role !== "staff")
+    if (!staff || staff.role?.toLowerCase() !== "staff")
       return res.status(400).json({ message: "Invalid staff member" });
 
     // Ensure same city
-    if (complaint.location?.city && staff.city !== complaint.location.city) {
+    if (complaint.location?.city && staff.city?.toLowerCase() !== complaint.location.city?.toLowerCase()) {
       return res.status(400).json({
         message: `Staff must be in the same city (${complaint.location.city}) as the complaint.`,
       });
@@ -325,6 +312,7 @@ exports.assignComplaint = async (req, res) => {
 
     // Ensure matching profession
     // ✅ Check if staff profession matches complaint type using mapping
+    console.log(`Validating assignment: Staff Profession='${staff.profession}', Complaint Type='${complaint.type}'`);
 if (!matchesProfession(staff, complaint)) {
   return res.status(400).json({
     message: `Staff profession (${staff.profession}) not suitable for complaint type (${complaint.type}).`,
@@ -333,12 +321,22 @@ if (!matchesProfession(staff, complaint)) {
 
 
     complaint.assignedTo = staff._id;
+
+    // Ensure assignmentHistory is an array before pushing
+    if (!Array.isArray(complaint.assignmentHistory)) {
+      complaint.assignmentHistory = [];
+    }
     complaint.assignmentHistory.push({
       assignedTo: staff._id,
       assignedBy: req.user._id,
       notes,
     });
     complaint.status = "IN_PROGRESS";
+
+    // Ensure statusHistory is an array before pushing
+    if (!Array.isArray(complaint.statusHistory)) {
+      complaint.statusHistory = [];
+    }
     complaint.statusHistory.push({
       status: "IN_PROGRESS",
       updatedBy: req.user._id,
@@ -461,3 +459,49 @@ exports.getHeatmapData = async (req, res) => {
 // ✅ Add this new function at the bottom or near others
 
 
+// ============================================================
+// 📤 Export Complaints to CSV (Admin Only)
+// ============================================================
+const { Parser } = require("json2csv");
+
+exports.exportComplaintsToCSV = async (req, res) => {
+  try {
+    const query = {};
+    if (req.query.city) {
+      query["location.city"] = new RegExp(req.query.city, "i");
+    }
+
+    const complaints = await Complaint.find(query)
+      .populate("assignedTo", "fullName profession")
+      .populate("reporter", "fullName email");
+
+    if (complaints.length === 0) {
+      return res.status(404).json({ message: "No complaints found to export" });
+    }
+
+    const data = complaints.map((c) => ({
+      ID: c._id.toString(),
+      Title: c.title,
+      Description: c.description,
+      Type: c.type,
+      Priority: c.priority,
+      Status: c.status,
+      Reporter: c.reporter?.fullName || "N/A",
+      AssignedTo: c.assignedTo?.fullName || "Unassigned",
+      Profession: c.assignedTo?.profession || "N/A",
+      City: c.location?.city || "Unknown",
+      CreatedAt: c.createdAt?.toISOString(),
+      UpdatedAt: c.updatedAt?.toISOString(),
+    }));
+
+    const json2csv = new Parser();
+    const csv = json2csv.parse(data);
+
+    res.header("Content-Type", "text/csv");
+    res.attachment(`complaints_export_${Date.now()}.csv`);
+    return res.send(csv);
+  } catch (err) {
+    console.error("❌ Error exporting complaints:", err);
+    res.status(500).json({ message: "Failed to export complaints", error: err.message });
+  }
+};

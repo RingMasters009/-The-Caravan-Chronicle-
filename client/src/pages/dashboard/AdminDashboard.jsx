@@ -147,27 +147,19 @@ const AdminDashboard = () => {
         return;
       }
 
-      if (selectedStaff.city !== complaint.location.city) {
+      if (selectedStaff.city?.toLowerCase() !== complaint.location.city?.toLowerCase()) {
         alert("Staff must be from the same city as the complaint.");
         return;
       }
 
-      const complaintType = complaint.type?.toLowerCase() || "";
-      const profession = selectedStaff.profession?.toLowerCase() || "";
-      const isProfessionMatch =
-        complaintType.includes(profession) || profession.includes(complaintType);
-
-      if (!isProfessionMatch) {
-        alert(
-          `Staff profession (${selectedStaff.profession}) does not match complaint type (${complaint.type}).`
-        );
-        return;
-      }
 
       await apiService.assignComplaint(complaintId, staffId);
       setFilters((prev) => ({ ...prev }));
     } catch (err) {
       console.error("Failed to assign complaint", err);
+      // Display the actual error message from the server
+      const errorMessage = err.response?.data?.message || err.message || "An unknown error occurred.";
+      alert(`Error: ${errorMessage}`);
     }
   };
 

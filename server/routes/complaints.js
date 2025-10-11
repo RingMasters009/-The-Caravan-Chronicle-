@@ -16,7 +16,12 @@ router.get("/heatmap", complaintController.getHeatmapData);
 
 // 📊 Complaint statistics (Admin only)
 router.get("/stats", protect, requireRole("Admin"), complaintController.getComplaintStats);
-
+router.get(
+  "/export",
+  protect,
+  requireRole("admin"),
+  complaintController.exportComplaintsToCSV
+);
 // 🧾 Get all complaints (Admin/Staff/User — logic handled inside controller)
 router.get("/", protect, complaintController.getAllComplaints);
 

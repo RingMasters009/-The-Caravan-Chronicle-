@@ -6,7 +6,7 @@ const { protect } = require("../middleware/auth");
 // ✅ Get all staff (Admin sees only their city)
 router.get("/", protect, async (req, res) => {
   try {
-    let query = { role: "Staff" };
+    let query = { role: /^Staff$/i };
 
     if (req.user.role === "Admin" && req.user.city) {
       query.city = req.user.city.toLowerCase();
