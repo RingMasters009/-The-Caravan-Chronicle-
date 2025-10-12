@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const statusEnum = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'ESCALATED'];
+const statusEnum = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'COMPLETED', 'ESCALATED'];
 const priorityEnum = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const typeEnum = [
   // 👷 Civil / Roads
@@ -14,6 +14,7 @@ const typeEnum = [
   'Broken Pipe',
 
   // ⚡ Electrical
+  'Electricity',
   'Electric Shortage',
   'Lighting',
   'Power Outage',

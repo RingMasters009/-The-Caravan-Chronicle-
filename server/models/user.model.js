@@ -48,6 +48,14 @@ profession: {
     enum: ['User', 'Staff', 'Admin'],
     default: 'User',
   },
+  emailVerificationToken: String,
+  emailVerificationExpires: Date,
+  isEmailVerified: {
+    type: Boolean,
+    default: false,
+  },
+  passwordResetToken: String,
+  passwordResetExpires: Date,
 }, {
   timestamps: true,
 });

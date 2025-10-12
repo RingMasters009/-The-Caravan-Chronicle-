@@ -4,6 +4,7 @@ const statusColors = {
   OPEN: "bg-amber-500/20 text-amber-200 border border-amber-500/40",
   IN_PROGRESS: "bg-sky-500/20 text-sky-200 border border-sky-500/30",
   RESOLVED: "bg-emerald-500/20 text-emerald-200 border border-emerald-500/30",
+  COMPLETED: "bg-green-500/20 text-green-200 border border-green-500/30",
   ESCALATED: "bg-rose-500/20 text-rose-200 border border-rose-500/30",
 };
 
@@ -59,6 +60,7 @@ const ComplaintTable = ({
             <th className="px-4 py-3 text-left font-medium">Created</th>
             <th className="px-4 py-3 text-left font-medium">Assigned</th>
             {showActions && <th className="px-4 py-3 text-left font-medium">Actions</th>}
+{!showActions && <th className="px-4 py-3 text-left font-medium">Manage</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/70">
@@ -104,6 +106,7 @@ const ComplaintTable = ({
                         <option value="IN_PROGRESS">IN_PROGRESS</option>
                         <option value="ESCALATED">ESCALATED</option>
                         <option value="RESOLVED">RESOLVED</option>
+                        <option value="COMPLETED">COMPLETED</option>
                       </select>
                     )}
                     {onAssign && (
@@ -121,6 +124,18 @@ const ComplaintTable = ({
                       </select>
                     )}
                   </div>
+                </td>
+              )}
+              {!showActions && (
+                <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                        {complaint.status === 'OPEN' && (
+                            <button onClick={() => onStatusChange(complaint._id, 'IN_PROGRESS')} className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-all duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-75">Start Work</button>
+                        )}
+                        {complaint.status === 'IN_PROGRESS' && (
+                            <button onClick={() => onStatusChange(complaint._id, 'COMPLETED')} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1 px-3 rounded-md text-xs transition-all duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-75">Mark Complete</button>
+                        )}
+                    </div>
                 </td>
               )}
             </tr>

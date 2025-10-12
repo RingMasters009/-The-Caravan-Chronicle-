@@ -31,17 +31,41 @@ export const apiService = {
   // AUTH
   // ===========================
   register: async (userData) => {
-    const res = await api.post("/auth/register", userData);
+    const { fullName, email, password, role, city, profession, adminCode } = userData;
+    const res = await api.post("/auth/register", {
+      fullName,
+      email,
+      password,
+      role,
+      city,
+      profession,
+      adminCode,
+    });
     return res.data;
   },
 
-  login: async (userData) => {
-    const res = await api.post("/auth/login", userData);
+  login: async (email, password) => {
+    const res = await api.post("/auth/login", { email, password });
     return res.data;
   },
 
   getCurrentUser: async () => {
     const res = await api.get("/auth/me");
+    return res.data;
+  },
+
+  verifyEmail: async (data) => {
+    const res = await api.post("/auth/verify-email", data);
+    return res.data;
+  },
+
+  forgotPassword: async (data) => {
+    const res = await api.post('/auth/forgot-password', data);
+    return res.data;
+  },
+
+  resetPassword: async (data) => {
+    const res = await api.post('/auth/reset-password', data);
     return res.data;
   },
 
@@ -114,6 +138,19 @@ export const apiService = {
   // Get staff members list
   getStaffMembers: async (params = {}) => {
     const res = await api.get("/staff", { params: cleanParams(params) });
+    return res.data;
+  },
+
+  // ===========================
+  // NOTIFICATIONS
+  // ===========================
+  getNotifications: async () => {
+    const res = await api.get('/notifications');
+    return res.data;
+  },
+
+  markNotificationsAsRead: async () => {
+    const res = await api.patch('/notifications/read');
     return res.data;
   },
 

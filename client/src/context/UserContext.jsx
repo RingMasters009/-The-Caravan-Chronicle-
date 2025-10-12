@@ -31,7 +31,7 @@ export const UserProvider = ({ children }) => {
   // --- LOGIN ---
   const login = async (email, password) => {
     try {
-   const data = await apiService.login({ email, password });
+      const data = await apiService.login(email, password);
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -44,35 +44,19 @@ export const UserProvider = ({ children }) => {
   };
 
   // --- REGISTER (updated to include role, city, profession) ---
-const register = async (fullName, email, password, role, city, profession) => {
-  try {
-    const normalizedProfession =
-      role === "Staff" && profession ? profession : null;
-
-    const data = await apiService.register({
-      fullName,
-      email,
-      password,
-      role,
-      city,
-      profession: normalizedProfession,
-      adminCode: "caravan123",
-    });
-
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    setUser(data.user);
-
-    return { success: true };
-  } catch (error) {
-    console.error("Registration failed:", error.response?.data || error);
-    return {
-      success: false,
-      message: error.response?.data?.message || "Registration failed",
-    };
-  }
-};
-
+  const register = async (userData) => {
+    try {
+      const data = await apiService.register(userData);
+      // Registration now leads to OTP, so we don't log the user in here.
+      return { success: true, message: data.message };
+    } catch (error) {
+      console.error("Registration failed:", error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.message || "Registration failed",
+      };
+    }
+  };
 
   // --- LOGOUT ---
   const logout = () => {
@@ -93,6 +77,7 @@ const register = async (fullName, email, password, role, city, profession) => {
 
   const value = {
     user,
+    setUser,
     loading,
     login,
     register,

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
+import NotificationBell from '../NotificationBell';
 
 const navItems = [
   { to: "/", label: "Home", roles: ["Guest", "User", "Staff", "Admin"] },
@@ -84,6 +85,7 @@ const Layout = () => {
           <div className="flex items-center gap-4 text-sm md:text-base">
             {user ? (
               <>
+                <NotificationBell />
                 <span className="hidden text-slate-400 md:inline">
                   {user.fullName} · {user.role}
                 </span>

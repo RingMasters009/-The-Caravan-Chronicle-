@@ -1,44 +1,34 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { apiService } from "../../api/apiService";
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import useDashboardData from '../../hooks/useDashboardData';
+import { apiService } from '../../api/apiService';
+import Pagination from '../../components/Pagination';
 
 const statusBadges = {
-  OPEN: "bg-amber-500/20 text-amber-300 border border-amber-500/40",
-  IN_PROGRESS: "bg-sky-500/20 text-sky-300 border border-sky-500/40",
-  RESOLVED: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40",
-  ESCALATED: "bg-rose-500/20 text-rose-300 border border-rose-500/40",
+  OPEN: 'bg-amber-500/20 text-amber-300 border border-amber-500/40',
+  IN_PROGRESS: 'bg-sky-500/20 text-sky-300 border border-sky-500/40',
+  RESOLVED: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
+  ESCALATED: 'bg-rose-500/20 text-rose-300 border border-rose-500/40',
 };
 
 const CitizenDashboard = () => {
-  const [complaints, setComplaints] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const {
+    complaints,
+    loading,
+    error,
+    page,
+    totalPages,
+    setPage,
+    refreshData,
+  } = useDashboardData({});
   const [verifyingId, setVerifyingId] = useState(null);
-
-  const loadComplaints = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getComplaints({});
-      setComplaints(Array.isArray(data) ? data : data?.items ?? []);
-
-      setError("");
-    } catch (err) {
-      setError(err.message || "Failed to load complaints");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadComplaints();
-  }, [loadComplaints]);
 
   const handleVerification = async (complaintId, action) => {
     try {
       let notes;
-      if (action === "REJECT") {
+      if (action === 'REJECT') {
         const input = window.prompt(
-          "Please describe what is still unresolved (optional details help staff)."
+          'Please describe what is still unresolved (optional details help staff).'
         );
         if (input === null) {
           return;
@@ -48,10 +38,11 @@ const CitizenDashboard = () => {
 
       setVerifyingId(complaintId);
       await apiService.verifyComplaint(complaintId, action, notes);
-      await loadComplaints();
+      refreshData();
     } catch (err) {
-      setError(err.message || "Failed to submit verification");
-      await loadComplaints();
+      // You might want to show an error to the user here
+      console.error('Failed to submit verification', err);
+      refreshData(); // Refresh to get the latest state even if verification fails
     } finally {
       setVerifyingId(null);
     }
@@ -154,7 +145,7 @@ const CitizenDashboard = () => {
             <tbody className="divide-y divide-slate-800/60">
               {complaints.map((complaint) => {
                 const isPendingVerification =
-                  complaint.status === "RESOLVED" && complaint.verification?.status === "PENDING";
+                  complaint.status === 'RESOLVED' && complaint.verification?.status === 'PENDING';
 
                 return (
                   <tr key={complaint._id} className="hover:bg-slate-900/30">
@@ -167,7 +158,7 @@ const CitizenDashboard = () => {
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                          statusBadges[complaint.status] ?? ""
+                          statusBadges[complaint.status] ?? ''
                         }`}
                       >
                         {complaint.status}
@@ -178,7 +169,7 @@ const CitizenDashboard = () => {
                       {new Date(complaint.createdAt).toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-slate-300">
-                      {complaint.assignedTo?.fullName ?? "Unassigned"}
+                      {complaint.assignedTo?.fullName ?? 'Unassigned'}
                     </td>
                     <td className="px-4 py-3 text-slate-300">
                       {renderVerificationStatus(complaint)}
@@ -189,18 +180,18 @@ const CitizenDashboard = () => {
                           <button
                             type="button"
                             className="rounded-lg bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-900 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                            onClick={() => handleVerification(complaint._id, "CONFIRM")}
+                            onClick={() => handleVerification(complaint._id, 'CONFIRM')}
                             disabled={verifyingId === complaint._id}
                           >
-                            {verifyingId === complaint._id ? "Confirming..." : "Confirm"}
+                            {verifyingId === complaint._id ? 'Confirming...' : 'Confirm'}
                           </button>
                           <button
                             type="button"
                             className="rounded-lg bg-rose-500 px-3 py-1 text-xs font-semibold text-slate-900 transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-60"
-                            onClick={() => handleVerification(complaint._id, "REJECT")}
+                            onClick={() => handleVerification(complaint._id, 'REJECT')}
                             disabled={verifyingId === complaint._id}
                           >
-                            {verifyingId === complaint._id ? "Submitting..." : "Reject"}
+                            {verifyingId === complaint._id ? 'Submitting...' : 'Reject'}
                           </button>
                         </div>
                       ) : (
@@ -212,6 +203,7 @@ const CitizenDashboard = () => {
               })}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

@@ -1,8 +1,10 @@
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const mongoose = require("mongoose");
 const  {Complaint}  = require("../models/Complaint");
 const User = require("../models/user.model");
+const { createNotification } = require('./notification.controller');
 // =====================
 // 🧠 Profession Mapping
 // =====================
@@ -119,11 +121,14 @@ exports.createComplaint = async (req, res) => {
     // 🧩 Find matching staff automatically
     let assignedStaff = null;
     if (type && location?.city) {
-      assignedStaff = await User.findOne({
-        role: "staff",
-        profession: { $regex: new RegExp(type, "i") },
-        city: location.city,
-      });
+      const expectedProfession = typeToProfessionMap[type];
+      if (expectedProfession) {
+        assignedStaff = await User.findOne({
+          role: "staff",
+          profession: expectedProfession,
+          city: location.city,
+        });
+      }
     }
 
     // 🧾 Build new complaint document
@@ -153,6 +158,9 @@ exports.createComplaint = async (req, res) => {
 
     await complaint.save();
 
+    // Emit a real-time event
+    req.io.emit('newComplaint', complaint);
+
     res.status(201).json({
       message: assignedStaff
         ? `Complaint auto-assigned to ${assignedStaff.fullName} (${assignedStaff.profession})`
@@ -168,61 +176,77 @@ exports.createComplaint = async (req, res) => {
 // ============================================================
 // 📋 Get All Complaints (role-based visibility)
 // ============================================================
-// 📋 Get All Complaints (role-based visibility)
-// ============================================================
 // ============================================================
 // 📋 Get All Complaints (role-based visibility)
 // ============================================================
-exports.getAllComplaints = async (req, res) => {
+// ============================================================
+// 📋 Get All Complaints (role-based visibility)
+// ============================================================
+const buildComplaintsQuery = (user, queryParams) => {
+  const query = {};
+  const { status, priority, type, city, search } = queryParams;
+
+  // 1. Role-based base query
+  switch (user.role?.toLowerCase()) {
+    case "admin":
+      if (user.city) {
+        query["location.city"] = new RegExp(user.city, "i");
+      }
+      break;
+    case "staff":
+      query.assignedTo = new mongoose.Types.ObjectId(user._id.toString());
+      break;
+    case "citizen":
+    case "user":
+      query.reporter = user._id;
+      break;
+  }
+
+  // 2. Apply additional filters from query parameters
+  if (status) query.status = new RegExp(status, "i");
+  if (priority) query.priority = new RegExp(priority, "i");
+  if (type) query.type = new RegExp(type, "i");
+  // Admins can filter by any city, overriding their own
+  if (user.role?.toLowerCase() === 'admin' && city) {
+      query["location.city"] = new RegExp(city, "i");
+  }
+
+  if (search) {
+    query.$or = [
+      { title: new RegExp(search, "i") },
+      { description: new RegExp(search, "i") },
+    ];
+  }
+
+  return query;
+};
+
+exports.getComplaints = async (req, res) => {
   try {
-    const { status, priority, type, city, search } = req.query;
-    const query = {};
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
 
-    console.log("👤 Authenticated user:", req.user.fullName, "| Role:", req.user.role, "| City:", req.user.city);
-
-    // 🧠 Role-based visibility
-    if (req.user.role?.toLowerCase() === "admin") {
-      if (req.user.city) query["location.city"] = new RegExp(req.user.city, "i");
-    } 
-    else if (req.user.role?.toLowerCase() === "staff") {
-      // Staff can see their assigned + same-city complaints
-      query.$or = [
-        { assignedTo: req.user._id },
-        { "location.city": new RegExp(req.user.city, "i") },
-      ];
-    } 
-    else if (req.user.role?.toLowerCase() === "citizen" || req.user.role?.toLowerCase() === "user") {
-      query.reporter = req.user._id;
-    }
-
-    // 🧩 Apply optional filters
-    if (status) query.status = new RegExp(status, "i");
-    if (priority) query.priority = new RegExp(priority, "i");
-    if (type) query.type = new RegExp(type, "i");
-    if (city) query["location.city"] = new RegExp(city, "i");
-    if (search) {
-      query.$or = [
-        { title: new RegExp(search, "i") },
-        { description: new RegExp(search, "i") },
-      ];
-    }
-
-    console.log("🔍 Complaint Query Used:", JSON.stringify(query, null, 2));
-
+    const query = buildComplaintsQuery(req.user, req.query);
+    const totalComplaints = await Complaint.countDocuments(query);
     const complaints = await Complaint.find(query)
       .populate("assignedTo", "fullName email profession city")
       .populate("reporter", "fullName email city")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    console.log("🟢 Complaints Found:", complaints.length);
-
-    res.status(200).json(complaints);
+    res.status(200).json({
+      complaints,
+      page,
+      totalPages: Math.ceil(totalComplaints / limit),
+      totalComplaints,
+    });
   } catch (error) {
-    console.error("❌ Error fetching complaints:", error.message);
-    res.status(500).json({ message: "Failed to load complaints", error: error.message });
+    console.error("Get Complaints Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
-
 
 
 // ============================================================
@@ -230,12 +254,8 @@ exports.getAllComplaints = async (req, res) => {
 // ============================================================
 exports.getComplaintStats = async (req, res) => {
   try {
-    const query = {};
-    if (req.query.city) query["location.city"] = new RegExp(req.query.city, "i");
-    else if (req.user.role === "Admin" && req.user.city)
-      query["location.city"] = new RegExp(req.user.city, "i");
-
-    console.log("📊 Complaint Stats Query:", query);
+    const query = buildComplaintsQuery(req.user, req.query);
+    console.log("📊 Final Stats Query:", JSON.stringify(query, null, 2));
 
     const total = await Complaint.countDocuments(query);
     const open = await Complaint.countDocuments({ ...query, status: /^OPEN$/i });
@@ -246,8 +266,6 @@ exports.getComplaintStats = async (req, res) => {
       dueAt: { $lt: new Date() },
       status: { $ne: "RESOLVED" },
     });
-
-    console.log("✅ Complaint Stats:", { total, open, inProgress, completed, overdue });
 
     res.status(200).json({ total, open, inProgress, completed, overdue });
   } catch (error) {
@@ -310,15 +328,8 @@ exports.assignComplaint = async (req, res) => {
       });
     }
 
-    // Ensure matching profession
-    // ✅ Check if staff profession matches complaint type using mapping
-    console.log(`Validating assignment: Staff Profession='${staff.profession}', Complaint Type='${complaint.type}'`);
-if (!matchesProfession(staff, complaint)) {
-  return res.status(400).json({
-    message: `Staff profession (${staff.profession}) not suitable for complaint type (${complaint.type}).`,
-  });
-}
-
+    // Admin has the authority to assign any complaint to any staff member, so we bypass strict profession matching.
+    console.log(`Admin assigning complaint. Bypassing strict profession match. Staff: '${staff.profession}', Complaint: '${complaint.type}'`);
 
     complaint.assignedTo = staff._id;
 
@@ -344,6 +355,14 @@ if (!matchesProfession(staff, complaint)) {
     });
 
     await complaint.save();
+
+    // Create a notification for the assigned staff member
+    createNotification(
+      staff._id,
+      `You have been assigned a new complaint: "${complaint.title}"`,
+      `/complaints/${complaint._id}`
+    );
+
     res.json({ message: "Complaint assigned successfully", complaint });
   } catch (error) {
     console.error("❌ Error assigning complaint:", error);
@@ -361,8 +380,13 @@ exports.updateComplaintStatus = async (req, res) => {
 
     if (!complaint) return res.status(404).json({ message: "Complaint not found" });
 
-    if (req.user.role === "staff" && !complaint.assignedTo.equals(req.user._id)) {
+    if (req.user.role.toLowerCase() === "staff" && !complaint.assignedTo.equals(req.user._id)) {
       return res.status(403).json({ message: "You can only update your assigned complaints" });
+    }
+
+    // Staff can only set status to IN_PROGRESS or COMPLETED
+    if (req.user.role.toLowerCase() === "staff" && !['IN_PROGRESS', 'COMPLETED'].includes(status)) {
+        return res.status(403).json({ message: 'Staff can only set status to In Progress or Completed.' });
     }
 
     complaint.status = status;
@@ -372,9 +396,20 @@ exports.updateComplaintStatus = async (req, res) => {
       notes,
     });
 
-    if (status === "RESOLVED") complaint.resolvedAt = new Date();
+    if (status === "RESOLVED" || status === "COMPLETED") complaint.resolvedAt = new Date();
 
     await complaint.save();
+
+    // Emit a real-time event
+    req.io.emit('complaintUpdated', complaint);
+
+    // Create a notification for the user who filed the complaint
+    createNotification(
+      complaint.reporter,
+      `The status of your complaint "${complaint.title}" has been updated to ${status}`,
+      `/complaints/${complaint._id}`
+    );
+
     res.json({ message: "Complaint status updated successfully", complaint });
   } catch (error) {
     console.error("❌ Error updating status:", error);
@@ -387,12 +422,14 @@ exports.updateComplaintStatus = async (req, res) => {
 // ============================================================
 exports.updateComplaint = async (req, res) => {
   try {
-    const updated = await Complaint.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
-    if (!updated) return res.status(404).json({ message: "Complaint not found" });
+    const newComplaint = await Complaint.create(req.body);
+    // Emit a real-time event
+    req.io.emit('newComplaint', newComplaint);
 
-    res.json({ message: "Complaint updated successfully", complaint: updated });
+    res.status(201).json({ 
+      message: "Complaint filed successfully!",
+      complaint: newComplaint
+    });
   } catch (error) {
     console.error("❌ Error updating complaint:", error);
     res.status(500).json({ message: "Failed to update complaint", error: error.message });

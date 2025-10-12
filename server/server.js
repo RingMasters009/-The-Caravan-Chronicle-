@@ -6,6 +6,9 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 const morgan = require("morgan");
+const http = require('http');
+const { initSocket } = require('./socket');
+
 console.log("JWT Secret:", process.env.JWT_SECRET);
 
 // Models (ensure they are registered)
@@ -14,6 +17,8 @@ const { Complaint } = require("./models/Complaint");
 require("./auth/google");
 
 const app = express();
+const server = http.createServer(app);
+const io = initSocket(server);
 
 // Jobs
 const { scheduleSlaMonitoring } = require("./jobs/slaMonitor");
@@ -49,6 +54,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
 
+// Make io accessible to our router
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Database connection
 const mongoURI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/CaravanOfChronicle";
 console.log('Connecting to MongoDB at:', mongoURI);
@@ -66,6 +77,7 @@ const complaintRoutes = require('./routes/complaints');
 const userRoutes = require('./routes/users');
 const publicRoutes = require("./routes/publicRoutes");
 const staffRoutes = require("./routes/staff");
+const notificationRoutes = require('./routes/notifications');
 app.use("/api/public", publicRoutes);
 
 // Health check
@@ -78,6 +90,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -86,7 +99,8 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => 
+
+server.listen(PORT, () => 
   console.log(`Server running on port ${PORT}`)
 );
 

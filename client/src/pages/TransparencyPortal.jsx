@@ -14,7 +14,6 @@ import {
   LineChart,
   Line,
 } from "recharts";
-
 // 🎨 Metric Card
 const metricCard = (label, value, accent = "text-teal-300") => (
   <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 shadow-sm hover:shadow-lg transition-all duration-300">

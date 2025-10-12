@@ -54,10 +54,7 @@ const requireRole = (...roles) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    if (
-      req.user.role === "Admin" ||
-      roles.map((r) => r.toLowerCase()).includes(req.user.role.toLowerCase())
-    ) {
+    if (roles.map((r) => r.toLowerCase()).includes(req.user.role.toLowerCase())) {
       return next();
     }
 
