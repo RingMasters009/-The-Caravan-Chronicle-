@@ -80,6 +80,7 @@ const ComplaintForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [userLocation, setUserLocation] = useState(null);
+  const [duplicates, setDuplicates] = useState(null);
 
   // ✅ Handle input changes
   const handleChange = (e) => {
@@ -150,6 +151,40 @@ const ComplaintForm = () => {
     }
   };
 
+  const handleSupport = async (complaintId) => {
+    try {
+      setLoading(true);
+      setError("");
+      await apiService.supportComplaint(complaintId);
+      navigate("/dashboard/citizen");
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || err.message || "Failed to support complaint.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateComplaintDirectly = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const { title, description } = formData;
+      const payload = {
+        ...formData,
+        title: title.trim(),
+        description: description.trim(),
+      };
+      await apiService.createComplaint(payload, image);
+      navigate("/dashboard/citizen");
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || err.message || "Failed to submit complaint.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -185,15 +220,101 @@ const ComplaintForm = () => {
         description: description.trim(),
       };
 
-      await apiService.createComplaint(payload, image);
-      navigate("/dashboard/citizen");
+      // Check duplicates first
+      const dupResults = await apiService.checkDuplicates(payload);
+      if (dupResults && dupResults.duplicates && dupResults.duplicates.length > 0) {
+        setDuplicates(dupResults.duplicates);
+      } else {
+        // Create directly if no duplicates
+        await apiService.createComplaint(payload, image);
+        navigate("/dashboard/citizen");
+      }
     } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to submit complaint.");
+      setError(err.response?.data?.message || err.message || "Failed to submit complaint.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (duplicates && duplicates.length > 0) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold text-slate-100 font-serif">
+            We found similar complaints nearby
+          </h1>
+          <p className="text-sm text-slate-400">
+            A similar issue might already be reported in your area. You can support an existing complaint to give it more priority, or proceed to submit your own.
+          </p>
+        </header>
+
+        <div className="space-y-4">
+          {duplicates.map((dup, index) => (
+            <div key={dup.id} className="glass-card hover:border-slate-600 rounded-2xl p-6 transition-all border border-slate-800 bg-slate-900/60 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-500 font-semibold">{index + 1}.</span>
+                  <h3 className="text-lg font-bold text-white">{dup.title}</h3>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400">
+                  <span className="flex items-center gap-1 text-xs">
+                    📍 {dup.distance} away
+                  </span>
+                  <span className="flex items-center gap-1 text-xs">
+                    👥 Supported by {dup.supporters} citizens
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${
+                    dup.status === "OPEN" ? "bg-blue-500/20 text-blue-300 pointer-events-none" :
+                    dup.status === "IN_PROGRESS" ? "bg-yellow-500/20 text-yellow-300 pointer-events-none" :
+                    dup.status === "ESCALATED" ? "bg-red-500/20 text-red-300 pointer-events-none" :
+                    "bg-green-500/20 text-green-300 pointer-events-none"
+                  }`}>
+                    {dup.status}
+                  </span>
+                  <span className="text-teal-400 text-xs">
+                    ({Math.round(dup.similarity * 100)}% match)
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSupport(dup.id)}
+                disabled={loading}
+                className="btn-primary-gradient px-4 py-2 rounded-xl text-slate-950 font-bold hover:cursor-pointer disabled:bg-slate-700 disabled:cursor-not-allowed text-sm whitespace-nowrap align-self-end md:align-self-auto"
+              >
+                {loading ? "Processing..." : "Support this Complaint"}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-between pt-4 border-t border-slate-800">
+          <button
+            type="button"
+            onClick={() => setDuplicates(null)}
+            className="px-5 py-2.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition text-sm font-semibold hover:cursor-pointer"
+          >
+            ← Go Back and Edit
+          </button>
+          <button
+            type="button"
+            onClick={handleCreateComplaintDirectly}
+            disabled={loading}
+            className="px-5 py-2.5 rounded-lg bg-teal-500 text-slate-950 hover:bg-teal-400 hover:cursor-pointer transition text-sm font-semibold disabled:bg-slate-700 disabled:cursor-not-allowed"
+          >
+            {loading ? "Submitting..." : "None of these match, Register New Complaint"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
